@@ -21,11 +21,7 @@ export function ProtectedRoute({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  async function checkAuth() {
-    try {
+    const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
@@ -33,27 +29,28 @@ export function ProtectedRoute({
         return;
       }
 
-      if (allowedRoles && allowedRoles.length > 0) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
 
-        if (!profile || !allowedRoles.includes(profile.role)) {
-          router.push("/unauthorized");
-          return;
-        }
+      if (!profile) {
+        router.push(redirectTo);
+        return;
+      }
+
+      if (allowedRoles && !allowedRoles.includes(profile.role)) {
+        router.push("/unauthorized");
+        return;
       }
 
       setIsAuthorized(true);
-    } catch (error) {
-      console.error("Auth check error:", error);
-      router.push(redirectTo);
-    } finally {
       setIsLoading(false);
-    }
-  }
+    };
+
+    checkAuth();
+  }, [router, allowedRoles]);
 
   if (isLoading) {
     return (

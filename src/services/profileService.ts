@@ -6,15 +6,42 @@ type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
 type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
 
 export const profileService = {
-  async getProfile(userId: string): Promise<Profile | null> {
+  // Get user profile
+  async getProfile(userId: string) {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error fetching profile:", error);
+      return null;
+    }
+
+    return data;
+  },
+
+  // Create or update profile with role
+  async upsertProfile(userId: string, updates: {
+    role?: "consumer" | "transporter" | "admin";
+    full_name?: string;
+    phone?: string;
+    avatar_url?: string;
+    language?: string;
+  }) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .upsert({
+        id: userId,
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error upserting profile:", error);
       return null;
     }
 
@@ -26,7 +53,7 @@ export const profileService = {
       .from("profiles")
       .insert(profile)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error creating profile:", error);
@@ -42,7 +69,7 @@ export const profileService = {
       .update(updates)
       .eq("id", userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error updating profile:", error);

@@ -6,57 +6,40 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Truck, Package, Shield, ArrowRight, MapPin, CreditCard, MessageSquare } from "lucide-react";
 
-export default function HomePage() {
+export default function Home() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (data) setUserRole(data.role);
+      }
+    };
     checkUser();
   }, []);
 
-  async function checkUser() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session) {
-        // Get user profile to determine role
-        const { data: profile } = await supabase.
-        from("profiles").
-        select("role").
-        eq("id", session.user.id).
-        single();
-
-        if (profile?.role) {
-          // Redirect to appropriate dashboard
-          switch (profile.role) {
-            case "consumer":
-              router.push("/consumer/dashboard");
-              break;
-            case "transporter":
-              router.push("/transporter/dashboard");
-              break;
-            case "admin":
-              router.push("/admin/dashboard");
-              break;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error checking user:", error);
-    } finally {
-      setIsLoading(false);
+  if (userRole) {
+    // Redirect to appropriate dashboard
+    switch (userRole) {
+      case "consumer":
+        router.push("/consumer/dashboard");
+        break;
+      case "transporter":
+        router.push("/transporter/dashboard");
+        break;
+      case "admin":
+        router.push("/admin/dashboard");
+        break;
     }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>);
-
   }
 
   return (

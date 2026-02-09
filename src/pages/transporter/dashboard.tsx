@@ -12,121 +12,106 @@ type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
 export default function TransporterDashboard() {
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(false);
-  const [availableJobs, setAvailableJobs] = useState<Booking[]>([]);
-  const [activeJobs, setActiveJobs] = useState<Booking[]>([]);
+  const [availableJobs, setAvailableJobs] = useState<any[]>([]);
+  const [activeJobs, setActiveJobs] = useState<any[]>([]);
   const [todayEarnings, setTodayEarnings] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardData();
+    const loadData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        
+        if (profile) {
+          setUser(profile);
+        }
+
+        const { data: availability } = await supabase
+          .from("transporter_availability")
+          .select("is_online")
+          .eq("transporter_id", session.user.id)
+          .maybeSingle();
+
+        if (availability) {
+          setIsOnline(availability.is_online);
+        }
+
+        const { data: jobs } = await supabase
+          .from("bookings")
+          .select("*")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false });
+
+        if (jobs) setAvailableJobs(jobs);
+
+        const { data: active } = await supabase
+          .from("bookings")
+          .select("*")
+          .eq("transporter_id", session.user.id)
+          .in("status", ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"])
+          .order("created_at", { ascending: false });
+
+        if (active) setActiveJobs(active);
+
+        // Calculate today's earnings
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const { data: completedJobs } = await supabase
+          .from("bookings")
+          .select("total_price") 
+          .eq("transporter_id", session.user.id)
+          .eq("status", "delivered")
+          .gte("created_at", today.toISOString());
+
+        if (completedJobs) {
+          // Assuming transporter gets 80% of total price for MVP logic
+          const earnings = completedJobs.reduce((sum, job) => sum + (Number(job.total_price) * 0.8), 0);
+          setTodayEarnings(earnings);
+        }
+      }
+    };
+    loadData();
   }, []);
 
-  async function loadDashboardData() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+  const toggleOnlineStatus = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
 
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
+    const newStatus = !isOnline;
 
-      setProfile(profileData);
+    const { data: existing } = await supabase
+      .from("transporter_availability")
+      .select("id")
+      .eq("transporter_id", session.user.id)
+      .maybeSingle();
 
-      const { data: availabilityData } = await supabase
+    if (existing) {
+      await supabase
         .from("transporter_availability")
-        .select("*")
-        .eq("transporter_id", session.user.id)
-        .single();
-
-      if (availabilityData) {
-        setIsOnline(availabilityData.is_online);
-      }
-
-      const { data: jobsData } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      setAvailableJobs(jobsData || []);
-
-      const { data: activeJobsData } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("transporter_id", session.user.id)
-        .in("status", ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"])
-        .order("created_at", { ascending: false });
-
-      setActiveJobs(activeJobsData || []);
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data: earningsData } = await supabase
-        .from("bookings")
-        .select("transporter_earnings")
-        .eq("transporter_id", session.user.id)
-        .eq("status", "delivered")
-        .gte("completed_at", today.toISOString());
-
-      const earnings = earningsData?.reduce((sum, booking) => sum + Number(booking.transporter_earnings), 0) || 0;
-      setTodayEarnings(earnings);
-
-    } catch (error) {
-      console.error("Error loading dashboard:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function toggleOnlineStatus(checked: boolean) {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data: existing } = await supabase
+        .update({ is_online: newStatus, updated_at: new Date().toISOString() })
+        .eq("transporter_id", session.user.id);
+    } else {
+      await supabase
         .from("transporter_availability")
-        .select("*")
-        .eq("transporter_id", session.user.id)
-        .single();
-
-      if (existing) {
-        await supabase
-          .from("transporter_availability")
-          .update({ is_online: checked, updated_at: new Date().toISOString() })
-          .eq("transporter_id", session.user.id);
-      } else {
-        await supabase
-          .from("transporter_availability")
-          .insert({
-            transporter_id: session.user.id,
-            is_online: checked,
-            updated_at: new Date().toISOString()
-          });
-      }
-
-      setIsOnline(checked);
-    } catch (error) {
-      console.error("Error toggling status:", error);
+        .insert({
+          transporter_id: session.user.id,
+          is_online: newStatus,
+        });
     }
-  }
+
+    setIsOnline(newStatus);
+  };
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/auth/login");
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-      </div>
-    );
   }
 
   return (
@@ -142,7 +127,7 @@ export default function TransporterDashboard() {
                 </span>
                 <Switch checked={isOnline} onCheckedChange={toggleOnlineStatus} />
               </div>
-              <span className="text-gray-600">{profile?.full_name}</span>
+              <span className="text-gray-600">{user?.full_name}</span>
               <Button variant="outline" onClick={handleLogout}>Log Out</Button>
             </div>
           </div>

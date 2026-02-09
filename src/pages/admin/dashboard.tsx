@@ -35,7 +35,9 @@ export default function AdminDashboard() {
         .from("profiles")
         .select("*")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
+
+      if (!profileData) return;
 
       setProfile(profileData);
 

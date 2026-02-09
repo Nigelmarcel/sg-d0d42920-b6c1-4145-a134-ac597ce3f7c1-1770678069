@@ -11,53 +11,38 @@ type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
 export default function ConsumerDashboard() {
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
-  const [activeBookings, setActiveBookings] = useState<Booking[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [bookings, setBookings] = useState<any[]>([]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  async function loadDashboardData() {
-    try {
+    const loadData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        
+        if (profile) {
+          setUser(profile);
+        }
 
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
+        const { data: userBookings } = await supabase
+          .from("bookings")
+          .select("*")
+          .eq("consumer_id", session.user.id)
+          .order("created_at", { ascending: false });
 
-      setProfile(profileData);
-
-      const { data: bookingsData } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("consumer_id", session.user.id)
-        .in("status", ["pending", "accepted", "en_route_pickup", "picked_up", "en_route_dropoff"])
-        .order("created_at", { ascending: false });
-
-      setActiveBookings(bookingsData || []);
-    } catch (error) {
-      console.error("Error loading dashboard:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+        if (userBookings) setBookings(userBookings);
+      }
+    };
+    loadData();
+  }, []);
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/auth/login");
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
   }
 
   return (
@@ -67,7 +52,7 @@ export default function ConsumerDashboard() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">MoveHelsinki</h1>
             <div className="flex items-center gap-4">
-              <span className="text-gray-600">Welcome, {profile?.full_name}</span>
+              <span className="text-gray-600">Welcome, {user?.full_name}</span>
               <Button variant="outline" onClick={handleLogout}>Log Out</Button>
             </div>
           </div>
@@ -88,7 +73,7 @@ export default function ConsumerDashboard() {
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{activeBookings.length}</div>
+                <div className="text-2xl font-bold">{bookings.length}</div>
               </CardContent>
             </Card>
 
@@ -99,7 +84,7 @@ export default function ConsumerDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {activeBookings.filter(b => b.status === "pending" || b.status === "accepted").length}
+                  {bookings.filter(b => b.status === "pending" || b.status === "accepted").length}
                 </div>
               </CardContent>
             </Card>
@@ -111,7 +96,7 @@ export default function ConsumerDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {activeBookings.filter(b => b.status === "picked_up" || b.status === "en_route_dropoff").length}
+                  {bookings.filter(b => b.status === "picked_up" || b.status === "en_route_dropoff").length}
                 </div>
               </CardContent>
             </Card>
@@ -123,7 +108,7 @@ export default function ConsumerDashboard() {
               <CardDescription>Your current bookings and their status</CardDescription>
             </CardHeader>
             <CardContent>
-              {activeBookings.length === 0 ? (
+              {bookings.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <p>No active bookings</p>
@@ -131,7 +116,7 @@ export default function ConsumerDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {activeBookings.map((booking) => (
+                  {bookings.map((booking) => (
                     <div key={booking.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
                          onClick={() => router.push(`/consumer/booking/${booking.id}`)}>
                       <div className="flex justify-between items-start mb-2">
