@@ -456,7 +456,7 @@ export default function TransporterDashboard() {
               <div className="mt-4">
                 <Button 
                   onClick={() => handleAcceptJob(booking.id)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
+                  className="w-full bg-success hover:bg-success/90 text-success-foreground font-semibold shadow-premium hover:shadow-elevated transition-all"
                   size="lg"
                 >
                   Accept Job - €{(booking.transporter_earnings || 0).toFixed(2)}
@@ -470,7 +470,7 @@ export default function TransporterDashboard() {
               <div className="mt-4">
                 <Button 
                   onClick={() => handleUpdateStatus(booking.id, nextAction.status)}
-                  className="w-full bg-gold-600 hover:bg-gold-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
+                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold shadow-premium hover:shadow-elevated transition-all"
                   size="lg"
                 >
                   {nextAction.label}
@@ -502,81 +502,81 @@ export default function TransporterDashboard() {
         title="Transporter Dashboard - VANGO"
         description="Find and manage moving jobs"
       />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Transporter Dashboard</h1>
-                <p className="text-gray-600">Welcome back, {userName}</p>
+                <h1 className="text-2xl font-bold text-foreground">Transporter Dashboard</h1>
+                <p className="text-muted-foreground">Welcome back, {userName}</p>
               </div>
 
               {/* User Menu Dropdown */}
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
                 >
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={userAvatar} alt={userName} />
-                    <AvatarFallback className="bg-blue-600 text-white">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
                       {getInitials(userName)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden sm:block">
-                    <p className="font-medium text-gray-900">{userName}</p>
-                    <p className="text-sm text-gray-500">{userEmail}</p>
+                    <p className="font-medium text-foreground">{userName}</p>
+                    <p className="text-sm text-muted-foreground">{userEmail}</p>
                   </div>
-                  <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {/* Dropdown Menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute right-0 mt-2 w-80 bg-card rounded-lg shadow-elevated border border-border py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* User Info Section */}
-                    <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="px-4 py-3 border-b border-border">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={userAvatar} alt={userName} />
-                          <AvatarFallback className="bg-blue-600 text-white text-lg">
+                          <AvatarFallback className="bg-primary text-primary-foreground text-lg">
                             {getInitials(userName)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <p className="font-semibold text-gray-900">{userName}</p>
-                          <p className="text-sm text-gray-500">{userEmail}</p>
-                          <Badge className="mt-1 bg-blue-100 text-blue-700">Transporter</Badge>
+                          <p className="font-semibold text-foreground">{userName}</p>
+                          <p className="text-sm text-muted-foreground">{userEmail}</p>
+                          <Badge className="mt-1 bg-primary/10 text-primary">Transporter</Badge>
                         </div>
                       </div>
                     </div>
 
                     {/* Quick Stats */}
-                    <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="px-4 py-3 border-b border-border">
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-green-50 rounded-lg p-3">
+                        <div className="bg-success/10 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-1">
-                            <DollarSign className="w-4 h-4 text-green-600" />
-                            <p className="text-xs font-medium text-green-900">Total Earnings</p>
+                            <DollarSign className="w-4 h-4 text-success" />
+                            <p className="text-xs font-medium text-success">Total Earnings</p>
                           </div>
-                          <p className="text-lg font-bold text-green-700">€{totalEarnings.toFixed(2)}</p>
+                          <p className="text-lg font-bold text-success">€{totalEarnings.toFixed(2)}</p>
                         </div>
-                        <div className="bg-blue-50 rounded-lg p-3">
+                        <div className="bg-primary/10 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-1">
-                            <Award className="w-4 h-4 text-blue-600" />
-                            <p className="text-xs font-medium text-blue-900">Completed</p>
+                            <Award className="w-4 h-4 text-primary" />
+                            <p className="text-xs font-medium text-primary">Completed</p>
                           </div>
-                          <p className="text-lg font-bold text-blue-700">{completedCount}</p>
+                          <p className="text-lg font-bold text-primary">{completedCount}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Online/Offline Toggle */}
-                    <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="px-4 py-3 border-b border-border">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-green-500" : "bg-gray-400"}`}></div>
-                          <span className="text-sm font-medium text-gray-700">
+                          <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-success" : "bg-muted-foreground"}`}></div>
+                          <span className="text-sm font-medium text-foreground">
                             {isOnline ? "Online" : "Offline"}
                           </span>
                         </div>
@@ -586,17 +586,17 @@ export default function TransporterDashboard() {
                             setUserMenuOpen(false);
                           }}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            isOnline ? "bg-green-600" : "bg-gray-300"
+                            isOnline ? "bg-success" : "bg-muted"
                           }`}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${
                               isOnline ? "translate-x-6" : "translate-x-1"
                             }`}
                           />
                         </button>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-muted-foreground mt-2">
                         {isOnline ? "You can accept new jobs" : "You won't receive job requests"}
                       </p>
                     </div>
@@ -608,7 +608,7 @@ export default function TransporterDashboard() {
                           router.push("/transporter/profile");
                           setUserMenuOpen(false);
                         }}
-                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                       >
                         <User className="w-4 h-4" />
                         <span>Profile</span>
@@ -622,7 +622,7 @@ export default function TransporterDashboard() {
                           });
                           setUserMenuOpen(false);
                         }}
-                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                       >
                         <Settings className="w-4 h-4" />
                         <span>Settings</span>
@@ -635,7 +635,7 @@ export default function TransporterDashboard() {
                           setUserMenuOpen(false);
                           handleLogout();
                         }}
-                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Logout</span>
@@ -654,72 +654,66 @@ export default function TransporterDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             {/* Available Jobs Tab */}
             <Card 
-              className={`cursor-pointer transition-all hover:shadow-lg ${
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
                 activeTab === "available" 
-                  ? "ring-2 ring-blue-500 shadow-lg" 
-                  : "hover:ring-1 hover:ring-gray-300"
+                  ? "ring-2 ring-primary shadow-lg bg-primary/5" 
+                  : "hover:ring-1 hover:ring-border bg-card"
               }`}
               onClick={() => setActiveTab("available")}
             >
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-5 h-5 text-blue-600" />
-                    <span className="text-base">Available Jobs</span>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-md">
+                    <Package className="h-4 w-4 text-primary" />
                   </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-blue-600">
-                  {availableJobs.length}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Available Jobs</p>
+                    <p className="text-2xl font-bold text-primary">{availableJobs.length}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Active Jobs Tab */}
             <Card 
-              className={`cursor-pointer transition-all hover:shadow-lg ${
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
                 activeTab === "active" 
-                  ? "ring-2 ring-orange-500 shadow-lg" 
-                  : "hover:ring-1 hover:ring-gray-300"
+                  ? "ring-2 ring-accent shadow-lg bg-accent/5" 
+                  : "hover:ring-1 hover:ring-border bg-card"
               }`}
               onClick={() => setActiveTab("active")}
             >
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-orange-600" />
-                    <span className="text-base">Active Jobs</span>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-accent/10 rounded-md">
+                    <Clock className="h-4 w-4 text-accent" />
                   </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-orange-600">
-                  {activeJobs.length}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Active Jobs</p>
+                    <p className="text-2xl font-bold text-accent">{activeJobs.length}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Completed Jobs Tab */}
             <Card 
-              className={`cursor-pointer transition-all hover:shadow-lg ${
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
                 activeTab === "completed" 
-                  ? "ring-2 ring-green-500 shadow-lg" 
-                  : "hover:ring-1 hover:ring-gray-300"
+                  ? "ring-2 ring-success shadow-lg bg-success/5" 
+                  : "hover:ring-1 hover:ring-border bg-card"
               }`}
               onClick={() => setActiveTab("completed")}
             >
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    <span className="text-base">Completed Jobs</span>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-success/10 rounded-md">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
                   </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">
-                  {completedCount}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Completed Jobs</p>
+                    <p className="text-2xl font-bold text-success">{completedCount}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -301,52 +301,52 @@ export default function ConsumerDashboard() {
         title="Consumer Dashboard - VANGO"
         description="Manage your moving bookings"
       />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div className="bg-card border-b border-border sticky top-0 z-40 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               {/* Logo & Title */}
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Consumer Dashboard</h1>
-                <p className="text-sm text-gray-600">Welcome back, {profile.full_name || "User"}</p>
+                <h1 className="text-2xl font-bold text-foreground">Consumer Dashboard</h1>
+                <p className="text-sm text-muted-foreground">Welcome back, {profile.full_name || "User"}</p>
               </div>
 
               {/* User Menu */}
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-all"
                 >
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
-                    <AvatarFallback className="bg-blue-600 text-white">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
                       {getInitials(profile.full_name || "User")}
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-gray-900">{profile.full_name}</p>
-                    <p className="text-xs text-gray-500">{profile.email}</p>
+                    <p className="text-sm font-medium text-foreground">{profile.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{profile.email}</p>
                   </div>
-                  <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {/* User Dropdown Menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute right-0 mt-2 w-80 bg-card rounded-lg shadow-elevated border border-border py-2 animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* User Info Section */}
-                    <div className="px-4 py-3 border-b border-gray-200">
+                    <div className="px-4 py-3 border-b border-border">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
-                          <AvatarFallback className="bg-blue-600 text-white text-lg">
+                          <AvatarFallback className="bg-primary text-primary-foreground text-lg">
                             {getInitials(profile.full_name || "User")}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <p className="text-sm font-semibold text-gray-900">{profile.full_name}</p>
-                          <p className="text-xs text-gray-500">{profile.email}</p>
-                          <Badge className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-100">
+                          <p className="text-sm font-semibold text-foreground">{profile.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{profile.email}</p>
+                          <Badge className="mt-1 bg-primary/10 text-primary hover:bg-primary/20">
                             Consumer
                           </Badge>
                         </div>
@@ -354,23 +354,23 @@ export default function ConsumerDashboard() {
                     </div>
 
                     {/* Quick Stats */}
-                    <div className="px-4 py-3 border-b border-gray-200">
+                    <div className="px-4 py-3 border-b border-border">
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-green-50 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-green-700">
+                        <div className="bg-success/10 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-success">
                             <DollarSign className="h-4 w-4" />
                             <span className="text-xs font-medium">Total Spent</span>
                           </div>
-                          <p className="text-lg font-bold text-green-700 mt-1">
+                          <p className="text-lg font-bold text-success mt-1">
                             €{totalSpent.toFixed(2)}
                           </p>
                         </div>
-                        <div className="bg-blue-50 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-blue-700">
+                        <div className="bg-primary/10 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-primary">
                             <TrendingUp className="h-4 w-4" />
                             <span className="text-xs font-medium">Completed</span>
                           </div>
-                          <p className="text-lg font-bold text-blue-700 mt-1">
+                          <p className="text-lg font-bold text-primary mt-1">
                             {completedCount}
                           </p>
                         </div>
@@ -384,7 +384,7 @@ export default function ConsumerDashboard() {
                           router.push("/consumer/profile");
                           setUserMenuOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                        className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors"
                       >
                         <User className="h-4 w-4" />
                         Profile
@@ -397,7 +397,7 @@ export default function ConsumerDashboard() {
                           });
                           setUserMenuOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                        className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2 transition-colors"
                       >
                         <Settings className="h-4 w-4" />
                         Settings
@@ -410,7 +410,7 @@ export default function ConsumerDashboard() {
                     <div className="py-2">
                       <button
                         onClick={handleLogout}
-                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                        className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
                       >
                         <LogOut className="h-4 w-4" />
                         Logout
@@ -430,7 +430,7 @@ export default function ConsumerDashboard() {
             <Button
               onClick={() => router.push("/consumer/book-move")}
               size="lg"
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-premium hover:shadow-elevated transition-all"
             >
               <Plus className="h-5 w-5 mr-2" />
               Book New Move
@@ -442,81 +442,89 @@ export default function ConsumerDashboard() {
             {/* All Bookings */}
             <Card
               onClick={() => setActiveFilter("all")}
-              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
                 activeFilter === "all"
-                  ? "ring-2 ring-blue-500 shadow-lg"
-                  : "hover:ring-1 hover:ring-gray-300"
+                  ? "ring-2 ring-primary shadow-lg bg-primary/5"
+                  : "hover:ring-1 hover:ring-border bg-card"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Package className="h-6 w-6 text-blue-600" />
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-md">
+                    <Package className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">All Bookings</p>
+                    <p className="text-2xl font-bold text-primary">{allBookings.length}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">All Bookings</p>
-                  <p className="text-2xl font-bold text-blue-600">{allBookings.length}</p>
-                </div>
-              </div>
+              </CardContent>
             </Card>
 
             {/* Pending */}
             <Card
               onClick={() => setActiveFilter("pending")}
-              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
                 activeFilter === "pending"
-                  ? "ring-2 ring-yellow-500 shadow-lg"
-                  : "hover:ring-1 hover:ring-gray-300"
+                  ? "ring-2 ring-warning shadow-lg bg-warning/5"
+                  : "hover:ring-1 hover:ring-border bg-card"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-yellow-100 rounded-lg">
-                  <Clock className="h-6 w-6 text-yellow-600" />
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-warning/10 rounded-md">
+                    <Clock className="h-4 w-4 text-warning" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Pending</p>
+                    <p className="text-2xl font-bold text-warning">{pendingCount}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
-                </div>
-              </div>
+              </CardContent>
             </Card>
 
             {/* Active */}
             <Card
               onClick={() => setActiveFilter("accepted")}
-              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
                 activeFilter === "accepted"
-                  ? "ring-2 ring-purple-500 shadow-lg"
-                  : "hover:ring-1 hover:ring-gray-300"
+                  ? "ring-2 ring-accent shadow-lg bg-accent/5"
+                  : "hover:ring-1 hover:ring-border bg-card"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <Navigation className="h-6 w-6 text-purple-600" />
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-accent/10 rounded-md">
+                    <Navigation className="h-4 w-4 text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Active</p>
+                    <p className="text-2xl font-bold text-accent">{activeCount}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Active</p>
-                  <p className="text-2xl font-bold text-purple-600">{activeCount}</p>
-                </div>
-              </div>
+              </CardContent>
             </Card>
 
             {/* Completed */}
             <Card
               onClick={() => setActiveFilter("delivered")}
-              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
                 activeFilter === "delivered"
-                  ? "ring-2 ring-green-500 shadow-lg"
-                  : "hover:ring-1 hover:ring-gray-300"
+                  ? "ring-2 ring-success shadow-lg bg-success/5"
+                  : "hover:ring-1 hover:ring-border bg-card"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-success/10 rounded-md">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium">Completed</p>
+                    <p className="text-2xl font-bold text-success">{completedCount}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">{completedCount}</p>
-                </div>
-              </div>
+              </CardContent>
             </Card>
           </div>
 
