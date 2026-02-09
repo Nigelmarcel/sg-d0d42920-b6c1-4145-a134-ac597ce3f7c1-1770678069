@@ -55,7 +55,7 @@ export default function ConsumerDashboard() {
 
   // User state
   const [userId, setUserId] = useState<string>("");
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // Bookings state
@@ -64,6 +64,7 @@ export default function ConsumerDashboard() {
   const [activeTab, setActiveTab] = useState<"active" | "pending" | "completed">("active");
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all");
   const [loading, setLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   // Stats state
   const [totalSpent, setTotalSpent] = useState(0);
@@ -934,6 +935,63 @@ ${"=".repeat(50)}
           otherUserName={selectedBooking.transporter_name}
           otherUserRole="transporter"
         />
+      )}
+
+      {/* Welcome Dialog */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <Card className="w-full max-w-lg mx-4 p-8">
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                <div className="bg-gradient-to-br from-navy-900 to-gold rounded-full p-4">
+                  <Package className="h-12 w-12 text-white" />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-3xl font-bold text-gray-900">
+                  Welcome to VANGO! 👋
+                </h2>
+                <p className="text-gray-600">
+                  You're all set to start moving items around Helsinki
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left space-y-2">
+                <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Quick Start Guide
+                </h3>
+                <ul className="space-y-2 text-sm text-blue-800">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600">1.</span>
+                    Click "Book a Move" to create your first booking
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600">2.</span>
+                    Enter pickup and dropoff addresses
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600">3.</span>
+                    Get matched with a transporter
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600">4.</span>
+                    Track your delivery in real-time
+                  </li>
+                </ul>
+              </div>
+
+              <Button
+                onClick={() => setShowWelcome(false)}
+                className="w-full bg-gradient-to-r from-navy-900 to-gold hover:from-navy-950 hover:to-gold/90"
+                size="lg"
+              >
+                Got it, let's start!
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Tracking Map Dialog */}

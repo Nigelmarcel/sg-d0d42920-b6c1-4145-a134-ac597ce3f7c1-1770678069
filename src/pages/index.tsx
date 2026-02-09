@@ -86,72 +86,76 @@ export default function Home() {
         </nav>
 
         {/* Hero Section */}
-        <section className="relative py-20 lg:py-32 overflow-hidden">
-          {/* Background Elements */}
-          <div className="absolute inset-0 bg-gradient-to-br from-secondary via-background to-background opacity-50"></div>
-          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
-
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="max-w-4xl mx-auto text-center">
-              {/* Premium Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6 animate-fade-in">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                Premium Moving Services in Helsinki
+        <section className="relative min-h-[85vh] flex items-center justify-center px-4 py-12">
+          <div className="absolute inset-0 bg-gradient-to-br from-navy-900/5 via-transparent to-gold/5" />
+          
+          <div className="relative max-w-6xl mx-auto text-center space-y-8">
+            {/* Logo */}
+            <div className="flex justify-center mb-8">
+              <div className="relative">
+                {/* Glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-navy-900 to-gold blur-3xl opacity-20 rounded-full" />
+                
+                {/* Logo container */}
+                <div className="relative bg-gradient-to-br from-navy-900 to-navy-950 p-8 rounded-3xl shadow-2xl border border-gold/20">
+                  <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gold via-yellow-400 to-gold tracking-tight">
+                    VANGO
+                  </h1>
+                  <div className="absolute -inset-1 bg-gradient-to-r from-navy-900 via-gold to-navy-900 rounded-3xl opacity-20 blur-sm -z-10" />
+                </div>
               </div>
+            </div>
 
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 animate-slide-up">
-                <span className="text-gradient-gold">Premium Moving</span>
-                <br />
-                <span className="text-foreground">Made Simple</span>
-              </h1>
-
-              <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
-                Your trusted partner for seamless, professional moving solutions. 
-                Connect with verified transporters for a worry-free experience.
+            {/* Tagline */}
+            <div className="space-y-4">
+              <p className="text-2xl md:text-3xl font-semibold text-gray-700 max-w-3xl mx-auto">
+                Helsinki's Smart Moving Solution
               </p>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Book a van in minutes. Track in real-time. Move stress-free.
+              </p>
+            </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center animate-scale-in">
-                <Button 
-                  size="lg" 
-                  onClick={handleGetStarted}
-                  className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                  Start Your Journey
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  onClick={handleGetStarted}
-                  className="text-lg px-8 py-6 border-2 border-primary/20 hover:border-primary hover:bg-primary/5 transition-all duration-300"
-                >
-                  Contact Expert
-                  <MessageCircle className="ml-2 h-5 w-5" />
-                </Button>
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+              <Button
+                size="lg"
+                onClick={() => router.push("/auth/signup")}
+                className="bg-gradient-to-r from-navy-900 to-gold hover:from-navy-950 hover:to-gold/90 text-white font-semibold text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
+              >
+                Get Started
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => router.push("/auth/login")}
+                className="border-2 border-navy-900 text-navy-900 hover:bg-navy-900 hover:text-white font-semibold text-lg px-8 py-6"
+              >
+                Sign In
+              </Button>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto pt-12">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-navy-900">2h</div>
+                <div className="text-sm text-gray-600">Avg. Response</div>
               </div>
-
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap items-center justify-center gap-6 mt-12 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  <span>Fully Insured</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  <span>Verified Professionals</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  <span>5-Star Rated</span>
-                </div>
+              <div className="text-center border-x border-gray-200">
+                <div className="text-3xl font-bold text-navy-900">€25</div>
+                <div className="text-sm text-gray-600">Starting From</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-navy-900">5★</div>
+                <div className="text-sm text-gray-600">Average Rating</div>
               </div>
             </div>
           </div>
         </section>
 
         {/* Features Section */}
-        <section className="py-20 bg-card">
+        <section className="py-20 bg-gradient-to-b from-white to-blue-50">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-bold mb-4">
@@ -277,10 +281,40 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Get Started Section */}
+        <section className="py-20 bg-gradient-to-br from-navy-900 to-navy-950 text-white">
+          <div className="max-w-4xl mx-auto px-4 text-center space-y-8">
+            <h2 className="text-4xl md:text-5xl font-bold">
+              Ready to Move?
+            </h2>
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+              Join hundreds of Helsinki residents who trust VANGO for their moving needs
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                size="lg"
+                onClick={() => router.push("/auth/signup")}
+                className="bg-gold hover:bg-gold/90 text-navy-900 font-bold text-lg px-8 py-6"
+              >
+                Get Started Now
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => router.push("/auth/login")}
+                className="border-2 border-white text-white hover:bg-white hover:text-navy-900 font-semibold text-lg px-8 py-6"
+              >
+                Sign In
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* Footer */}
-        <footer className="py-12 px-4 border-t bg-card">
-          <div className="container mx-auto max-w-6xl">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <footer className="bg-navy-900 text-white py-12">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               <div className="flex items-center gap-2">
                 <Package className="h-6 w-6 text-primary" />
                 <span className="text-xl font-display font-bold text-primary">VANGO</span>

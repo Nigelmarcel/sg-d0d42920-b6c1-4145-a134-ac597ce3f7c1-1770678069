@@ -5,6 +5,13 @@ export interface Profile {
   id: string;
   email: string | null;
   full_name: string | null;
+  avatar_url?: string | null;
+  role?: "consumer" | "transporter" | "admin" | null;
+  phone?: string | null;
+  language?: string | null;
+  is_online?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
