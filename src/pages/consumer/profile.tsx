@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home } from "lucide-react";
+import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home, LogOut } from "lucide-react";
 import { format } from "date-fns";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -136,6 +136,11 @@ export default function ConsumerProfile() {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
   const getInitials = (name: string | null) => {
     if (!name) return "U";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -159,20 +164,17 @@ export default function ConsumerProfile() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <Button
-              variant="outline"
+          <div className="flex items-center justify-between mb-6">
+            <Button 
+              variant="outline" 
               onClick={() => router.push("/consumer/dashboard")}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => router.push("/")}
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Home
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
             </Button>
           </div>
 

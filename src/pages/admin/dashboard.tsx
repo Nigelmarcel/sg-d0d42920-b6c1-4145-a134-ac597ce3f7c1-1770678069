@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Truck, Package, DollarSign, AlertCircle, Search, Filter, Eye, Ban, CheckCircle, Mail, Download, Home } from "lucide-react";
+import { Users, Truck, Package, DollarSign, AlertCircle, Search, Filter, Eye, Ban, CheckCircle, Mail, Download, Home, LogOut } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -381,17 +381,17 @@ export default function AdminDashboard() {
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-              <div className="flex items-center gap-4">
-                <Button variant="outline" onClick={() => router.push("/")}>
-                  <Home className="w-4 h-4 mr-2" />
-                  Home
-                </Button>
-                <Button variant="outline" onClick={handleLogout}>Log Out</Button>
-              </div>
+        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Manage VANGO platform</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Log Out
+              </Button>
             </div>
           </div>
         </header>

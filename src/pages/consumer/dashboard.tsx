@@ -16,7 +16,8 @@ import {
   XCircle,
   Truck,
   AlertCircle,
-  Home
+  Home,
+  LogOut
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { bookingService } from "@/services/bookingService";
@@ -93,6 +94,11 @@ function ConsumerDashboardContent() {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
   const fetchBookings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -139,18 +145,18 @@ function ConsumerDashboardContent() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-4xl font-bold">Welcome back!</h1>
-            <Button
-              variant="outline"
-              onClick={() => router.push("/")}
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Home
-            </Button>
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <Package className="w-8 h-8 text-indigo-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Dashboard</h1>
+              <p className="text-gray-600 dark:text-gray-400">{userEmail}</p>
+            </div>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">{userEmail}</p>
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
         </div>
 
         {/* Quick Actions */}
