@@ -50,7 +50,7 @@ export function ProtectedRoute({
     };
 
     checkAuth();
-  }, [router, allowedRoles]);
+  }, [router, allowedRoles, redirectTo]);
 
   if (isLoading) {
     return (

@@ -8,11 +8,13 @@ import { Switch } from "@/components/ui/switch";
 import { DollarSign, Package, TrendingUp, MapPin } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
-type Booking = Database["public"]["Tables"]["bookings"]["Row"];
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type TransporterAvailability = Database["public"]["Tables"]["transporter_availability"]["Row"];
+type Payment = Database["public"]["Tables"]["payments"]["Row"];
 
 export default function TransporterDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [activeJobs, setActiveJobs] = useState<any[]>([]);
@@ -29,7 +31,7 @@ export default function TransporterDashboard() {
           .maybeSingle();
         
         if (profile) {
-          setUser(profile);
+          setProfile(profile);
         }
 
         const { data: availability } = await supabase
@@ -127,7 +129,7 @@ export default function TransporterDashboard() {
                 </span>
                 <Switch checked={isOnline} onCheckedChange={toggleOnlineStatus} />
               </div>
-              <span className="text-gray-600">{user?.full_name}</span>
+              <span className="text-gray-600">{profile?.full_name}</span>
               <Button variant="outline" onClick={handleLogout}>Log Out</Button>
             </div>
           </div>

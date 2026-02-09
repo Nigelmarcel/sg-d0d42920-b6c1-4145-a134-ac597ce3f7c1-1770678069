@@ -1,5 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import type { Session } from "@supabase/supabase-js";
+
+type UserRole = Database["public"]["Enums"]["user_role"];
+
+interface SignUpParams {
+  email: string;
+  password: string;
+  role: UserRole;
+  fullName?: string;
+  phone?: string;
+}
 
 export interface AuthUser {
   id: string;
@@ -177,5 +188,61 @@ export const authService = {
   // Listen to auth state changes
   onAuthStateChange(callback: (event: string, session: Session | null) => void) {
     return supabase.auth.onAuthStateChange(callback);
+  },
+
+  // Update user role
+  async updateRole(userId: string, role: UserRole) {
+    const { data } = await supabase
+      .from("profiles")
+      .update({ role })
+      .eq("id", userId)
+      .select()
+      .single();
+
+    return data;
+  },
+
+  // Update user profile
+  async updateProfile(userId: string, updates: { full_name?: string; phone?: string }) {
+    const { data } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", userId)
+      .select()
+      .single();
+
+    return data;
+  },
+
+  // Check if email exists
+  async checkEmailExists(email: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    return !!data;
+  },
+
+  // Get user by ID
+  async getUserById(userId: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    return data;
+  },
+
+  // Delete user account
+  async deleteAccount(userId: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .delete()
+      .eq("id", userId);
+
+    return data;
   }
 };

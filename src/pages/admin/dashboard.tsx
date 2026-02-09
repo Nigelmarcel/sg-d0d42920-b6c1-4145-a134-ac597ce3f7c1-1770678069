@@ -6,11 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Users, Truck, Package, DollarSign, AlertCircle } from "lucide-react";
+import { Users, Truck, Package, DollarSign, AlertCircle, LogOut, CheckCircle, XCircle } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
+
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type TransporterApplication = Database["public"]["Tables"]["transporter_applications"]["Row"];
+type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState({
     totalConsumers: 0,
     totalTransporters: 0,
@@ -19,7 +24,7 @@ export default function AdminDashboard() {
     totalRevenue: 0,
     todayBookings: 0
   });
-  const [pendingApplications, setPendingApplications] = useState<any[]>([]);
+  const [pendingApplications, setPendingApplications] = useState<TransporterApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

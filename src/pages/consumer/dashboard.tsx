@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "@/integrations/supabase/client";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Package, Clock, CheckCircle, MapPin } from "lucide-react";
+import { Package, Clock, LogOut, Plus, MapPin } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { authService } from "@/services/authService";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import type { Database } from "@/integrations/supabase/types";
 
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
 export default function ConsumerDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -25,7 +27,7 @@ export default function ConsumerDashboard() {
           .maybeSingle();
         
         if (profile) {
-          setUser(profile);
+          setProfile(profile);
         }
 
         const { data: userBookings } = await supabase
@@ -52,7 +54,7 @@ export default function ConsumerDashboard() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">MoveHelsinki</h1>
             <div className="flex items-center gap-4">
-              <span className="text-gray-600">Welcome, {user?.full_name}</span>
+              <span className="text-gray-600">Welcome, {profile?.full_name}</span>
               <Button variant="outline" onClick={handleLogout}>Log Out</Button>
             </div>
           </div>
