@@ -4,12 +4,12 @@ import { SEO } from "@/components/SEO";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
-import { profileService } from "@/services/profileService";
+import { profileService, type Profile } from "@/services/profileService";
 import { bookingService, type Booking } from "@/services/bookingService";
 import { 
   Package, 
@@ -28,8 +28,14 @@ import {
   Navigation,
   MessageSquare,
   RotateCcw,
-  Plus
+  Plus,
+  Ruler,
+  Phone,
+  AlertCircle,
+  Loader2,
+  Camera
 } from "lucide-react";
+import { ChatDialog } from "@/components/ChatDialog";
 
 type StatusFilter = "all" | "pending" | "accepted" | "in_transit" | "delivered" | "cancelled";
 
@@ -54,6 +60,10 @@ export default function ConsumerDashboard() {
   const [completedCount, setCompletedCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+
+  // Chat dialog state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   // Fetch user profile
   useEffect(() => {
@@ -260,6 +270,16 @@ export default function ConsumerDashboard() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleOpenChat = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setChatOpen(true);
+  };
+
+  const handleCloseChat = () => {
+    setChatOpen(false);
+    setSelectedBooking(null);
   };
 
   if (!profile) {
@@ -652,6 +672,10 @@ export default function ConsumerDashboard() {
                           <Button
                             variant="outline"
                             className="w-full"
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setChatOpen(true);
+                            }}
                           >
                             <MessageSquare className="h-4 w-4 mr-2" />
                             Chat
@@ -699,6 +723,18 @@ export default function ConsumerDashboard() {
           )}
         </div>
       </div>
+
+      {/* Chat Dialog */}
+      {selectedBooking && profile && chatOpen && (
+        <ChatDialog
+          isOpen={chatOpen}
+          onClose={handleCloseChat}
+          bookingId={selectedBooking.id}
+          otherUserId={selectedBooking.transporter_id!}
+          otherUserName={selectedBooking.transporter_name}
+          otherUserRole="transporter"
+        />
+      )}
     </ProtectedRoute>
   );
 }

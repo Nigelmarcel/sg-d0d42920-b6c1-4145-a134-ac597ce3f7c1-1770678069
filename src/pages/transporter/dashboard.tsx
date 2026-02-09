@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { LocationTracker } from "@/components/LocationTracker";
 import { authService } from "@/services/authService";
-import { profileService } from "@/services/profileService";
+import { profileService, type Profile } from "@/services/profileService";
 import { bookingService, type Booking } from "@/services/bookingService";
 import { 
   Package, 
@@ -25,10 +25,18 @@ import {
   ChevronDown,
   TrendingUp,
   Award,
-  DollarSign
+  DollarSign,
+  Phone,
+  Navigation,
+  Star,
+  MessageSquare,
+  Camera,
+  Loader2,
+  XCircle
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { ChatDialog } from "@/components/ChatDialog";
 
 type TabType = "available" | "active" | "completed";
 type BookingStatus = "pending" | "accepted" | "en_route_pickup" | "picked_up" | "en_route_dropoff" | "delivered" | "cancelled";
@@ -50,6 +58,11 @@ export default function TransporterDashboard() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  
+  // Chat state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -247,6 +260,29 @@ export default function TransporterDashboard() {
     });
     router.push("/auth/login");
   };
+
+  const handleOpenChat = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setChatOpen(true);
+  };
+
+  const handleCloseChat = () => {
+    setChatOpen(false);
+    setSelectedBooking(null);
+  };
+
+  // Check if profile is loaded
+  if (!userId || !userName) {
+    return (
+      <ProtectedRoute allowedRoles={["transporter"]}>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   const getNextAction = (booking: Booking) => {
     switch (booking.status) {
@@ -747,6 +783,19 @@ export default function TransporterDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Chat Dialog */}
+      {selectedBooking && (
+        <ChatDialog
+          isOpen={chatOpen}
+          onClose={handleCloseChat}
+          bookingId={selectedBooking.id}
+          otherUserId={selectedBooking.consumer_id!}
+          otherUserName={selectedBooking.consumer_name || "Consumer"}
+          otherUserRole="consumer"
+          otherUserAvatar={undefined}
+        />
+      )}
     </ProtectedRoute>
   );
 }

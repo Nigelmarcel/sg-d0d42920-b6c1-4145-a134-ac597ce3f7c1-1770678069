@@ -1,69 +1,68 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Send, Camera, Image as ImageIcon, Loader2 } from "lucide-react";
+import { X, Send, Camera, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { chatService, type ChatMessage } from "@/services/chatService";
 import { photoService } from "@/services/photoService";
-import { useToast } from "@/hooks/use-toast";
+import { authService } from "@/services/authService";
+
+// Use the interface from service to ensure consistency
+interface Message extends ChatMessage {}
 
 interface ChatDialogProps {
-  open: boolean;
+  isOpen: boolean;
   onClose: () => void;
   bookingId: string;
-  userId: string;
-  otherUserName: string;
+  otherUserId: string;
+  otherUserName?: string;
+  otherUserRole: "consumer" | "transporter";
   otherUserAvatar?: string;
 }
 
 export function ChatDialog({
-  open,
+  isOpen,
   onClose,
   bookingId,
-  userId,
+  otherUserId,
   otherUserName,
-  otherUserAvatar,
+  otherUserRole,
 }: ChatDialogProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [sending, setSending] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
-    if (open && bookingId) {
+    if (isOpen && bookingId) {
+      loadCurrentUser();
       loadMessages();
-      const unsubscribe = chatService.subscribeToMessages(bookingId, (message) => {
-        setMessages((prev) => [...prev, message]);
-        scrollToBottom();
-      });
-
-      return () => {
-        unsubscribe();
-      };
+      const interval = setInterval(loadMessages, 30000);
+      return () => clearInterval(interval);
     }
-  }, [open, bookingId]);
+  }, [isOpen, bookingId]);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      markMessagesAsRead();
-      scrollToBottom();
-    }
+    scrollToBottom();
   }, [messages]);
 
-  const loadMessages = async () => {
-    setLoading(true);
-    const msgs = await chatService.getMessages(bookingId);
-    setMessages(msgs);
-    setLoading(false);
+  const loadCurrentUser = async () => {
+    const user = await authService.getCurrentUser();
+    if (user) {
+      setCurrentUserId(user.id);
+    }
   };
 
-  const markMessagesAsRead = async () => {
-    await chatService.markAllAsRead(bookingId, userId);
+  const loadMessages = async () => {
+    try {
+      const msgs = await chatService.getMessages(bookingId);
+      setMessages(msgs);
+    } catch (error) {
+      console.error("Failed to load messages:", error);
+    }
   };
 
   const scrollToBottom = () => {
@@ -72,62 +71,36 @@ export function ChatDialog({
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || sending) return;
+    if (!newMessage.trim() || isLoading) return;
 
-    setSending(true);
-    const message = await chatService.sendMessage(bookingId, userId, newMessage.trim());
-    
-    if (message) {
+    setIsLoading(true);
+    try {
+      await chatService.sendMessage(bookingId, currentUserId, newMessage);
       setNewMessage("");
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive",
-      });
+      await loadMessages();
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setSending(false);
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploading(true);
+    setIsUploading(true);
     try {
-      const compressed = await photoService.compressImage(file);
-      const result = await photoService.uploadPhoto(compressed, bookingId, userId);
-
+      const result = await photoService.uploadPhoto(file, bookingId, currentUserId);
       if (result) {
-        const message = await chatService.sendPhoto(
-          bookingId,
-          userId,
-          result.url,
-          "Photo"
-        );
-
-        if (!message) {
-          toast({
-            title: "Error",
-            description: "Failed to send photo. Please try again.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to upload photo. Please try again.",
-          variant: "destructive",
-        });
+        await chatService.sendPhoto(bookingId, currentUserId, result.url);
+        await loadMessages();
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to process photo. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Failed to upload photo:", error);
+      alert(error instanceof Error ? error.message : "Failed to upload photo");
     } finally {
-      setUploading(false);
+      setIsUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -137,114 +110,75 @@ export function ChatDialog({
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
+      hour: "2-digit",
       minute: "2-digit",
-      hour12: true,
+      hour12: false,
     });
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col p-0">
-        <DialogHeader className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarImage src={otherUserAvatar} />
-                <AvatarFallback>{getInitials(otherUserName)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <DialogTitle>{otherUserName}</DialogTitle>
-                <p className="text-sm text-gray-500">Chat</p>
-              </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0 gap-0 bg-card">
+        {/* Header */}
+        <DialogHeader className="p-6 pb-4 border-b space-y-2">
+          <DialogTitle className="text-xl font-display font-semibold flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-semibold text-primary">
+                {otherUserName?.charAt(0).toUpperCase() || "U"}
+              </span>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+            <div className="flex-1">
+              <div className="text-lg font-semibold">{otherUserName || "User"}</div>
+              <div className="text-xs text-muted-foreground font-normal capitalize">{otherUserRole}</div>
+            </div>
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Send className="h-8 w-8 text-gray-400" />
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/30">
+          {messages.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="inline-flex h-16 w-16 rounded-full bg-muted items-center justify-center mb-4">
+                <Send className="h-7 w-7 text-muted-foreground" />
               </div>
-              <p className="text-gray-500 font-medium">No messages yet</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Start the conversation
-              </p>
+              <p className="text-sm text-muted-foreground font-medium">No messages yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Start the conversation</p>
             </div>
           ) : (
             messages.map((message) => {
-              const isOwn = message.senderId === userId;
-              const isSystem = message.messageType === "system";
-
-              if (isSystem) {
-                return (
-                  <div key={message.id} className="flex justify-center">
-                    <div className="bg-gray-100 text-gray-600 text-xs px-4 py-2 rounded-full">
-                      {message.content}
-                    </div>
-                  </div>
-                );
-              }
-
+              const isOwnMessage = message.senderId === currentUserId;
               return (
                 <div
                   key={message.id}
-                  className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                  className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
                 >
-                  <div className={`flex gap-2 max-w-[80%] ${isOwn ? "flex-row-reverse" : ""}`}>
-                    {!isOwn && (
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={message.senderAvatar} />
-                        <AvatarFallback className="text-xs">
-                          {getInitials(message.senderName || "U")}
-                        </AvatarFallback>
-                      </Avatar>
+                  <div
+                    className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-soft ${
+                      isOwnMessage
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background border"
+                    }`}
+                  >
+                    {message.messageType === "photo" && message.photoUrl && (
+                      <a
+                        href={message.photoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block mb-2"
+                      >
+                        <img
+                          src={message.photoUrl}
+                          alt="Uploaded"
+                          className="max-w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
+                          style={{ maxHeight: "300px" }}
+                        />
+                      </a>
                     )}
-                    <div>
-                      {message.messageType === "photo" && message.photoUrl ? (
-                        <div className={`rounded-lg overflow-hidden ${isOwn ? "bg-blue-500" : "bg-gray-100"}`}>
-                          <img
-                            src={message.photoUrl}
-                            alt="Shared photo"
-                            className="max-w-full h-auto"
-                          />
-                          {message.content !== "Photo" && (
-                            <p className={`px-3 py-2 text-sm ${isOwn ? "text-white" : "text-gray-700"}`}>
-                              {message.content}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <div
-                          className={`px-4 py-2 rounded-lg ${
-                            isOwn
-                              ? "bg-blue-500 text-white"
-                              : "bg-gray-100 text-gray-900"
-                          }`}
-                        >
-                          <p className="text-sm break-words">{message.content}</p>
-                        </div>
-                      )}
-                      <p className={`text-xs text-gray-400 mt-1 ${isOwn ? "text-right" : ""}`}>
-                        {formatTime(message.createdAt)}
-                      </p>
+                    {message.content && (
+                      <p className="text-sm leading-relaxed break-words">{message.content}</p>
+                    )}
+                    <div className={`text-xs mt-2 ${isOwnMessage ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                      {formatTime(message.createdAt)}
                     </div>
                   </div>
                 </div>
@@ -254,8 +188,9 @@ export function ChatDialog({
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="border-t px-6 py-4">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
+        {/* Input */}
+        <div className="p-6 pt-4 border-t bg-background">
+          <form onSubmit={handleSendMessage} className="flex items-center gap-3">
             <input
               ref={fileInputRef}
               type="file"
@@ -266,30 +201,37 @@ export function ChatDialog({
             
             <Button
               type="button"
-              variant="outline"
               size="icon"
+              variant="ghost"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
+              disabled={isUploading}
+              className="shrink-0 hover:bg-accent/10"
             >
-              {uploading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {isUploading ? (
+                <div className="h-4 w-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               ) : (
-                <ImageIcon className="h-4 w-4" />
+                <Camera className="h-5 w-5 text-accent" />
               )}
             </Button>
 
             <Input
-              placeholder="Type a message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              disabled={sending || uploading}
+              placeholder="Type your message..."
+              disabled={isLoading || isUploading}
+              className="flex-1 border-muted focus:ring-primary"
             />
 
-            <Button type="submit" size="icon" disabled={!newMessage.trim() || sending}>
-              {sending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+            <Button 
+              type="submit" 
+              size="icon"
+              disabled={!newMessage.trim() || isLoading || isUploading}
+              className="shrink-0 shadow-soft"
+            >
+              {isLoading ? (
+                <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
               ) : (
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
               )}
             </Button>
           </form>

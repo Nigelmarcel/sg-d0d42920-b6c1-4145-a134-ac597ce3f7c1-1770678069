@@ -2,7 +2,12 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { geocodingService } from "./geocodingService";
 
-export type Booking = Database["public"]["Tables"]["bookings"]["Row"];
+export type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
+  transporter_name?: string;
+  consumer_name?: string;
+  transporter_earnings?: number;
+  item_photos?: string[];
+};
 export type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
 type BookingInsert = Database["public"]["Tables"]["bookings"]["Insert"];
@@ -247,16 +252,19 @@ export const bookingService = {
     try {
       const { data, error } = await supabase
         .from("bookings")
-        .select("*")
+        .select(`
+          *,
+          transporter:profiles!transporter_id(full_name)
+        `)
         .eq("consumer_id", consumerId)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching consumer bookings:", error);
-        return [];
-      }
+      if (error) throw error;
 
-      return data || [];
+      return (data || []).map((booking: any) => ({
+        ...booking,
+        transporter_name: booking.transporter?.full_name
+      }));
     } catch (error) {
       console.error("Error in getConsumerBookings:", error);
       return [];
@@ -296,7 +304,7 @@ export const bookingService = {
         .from("bookings")
         .select(`
           *,
-          consumer:profiles!bookings_consumer_id_fkey(*)
+          consumer:profiles!consumer_id(full_name)
         `)
         .eq("transporter_id", transporterId);
 
@@ -304,14 +312,14 @@ export const bookingService = {
         query = query.in("status", statusFilter);
       }
 
-      const { data, error } = await query.order("created_at", { ascending: false });
+      const { data, error } = await query.order("scheduled_at", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching transporter bookings:", error);
-        return [];
-      }
+      if (error) throw error;
 
-      return data || [];
+      return (data || []).map((booking: any) => ({
+        ...booking,
+        consumer_name: booking.consumer?.full_name
+      }));
     } catch (error) {
       console.error("Error in getTransporterBookings:", error);
       return [];
