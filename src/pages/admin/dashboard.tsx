@@ -212,7 +212,7 @@ export default function AdminDashboard() {
             .from("bookings")
             .select("id, total_price")
             .eq("transporter_id", transporter.id)
-            .eq("status", "completed");
+            .eq("status", "delivered");
 
           const totalEarnings = bookings?.reduce((sum, b) => sum + Number(b.total_price) * 0.8, 0) || 0;
 
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "completed": return "default";
+      case "delivered": return "default";
       case "cancelled": return "destructive";
       case "pending": return "secondary";
       default: return "outline";
@@ -554,7 +554,7 @@ export default function AdminDashboard() {
                           <SelectItem value="en_route_pickup">En Route (Pickup)</SelectItem>
                           <SelectItem value="picked_up">Picked Up</SelectItem>
                           <SelectItem value="en_route_dropoff">En Route (Dropoff)</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="delivered">Delivered</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
