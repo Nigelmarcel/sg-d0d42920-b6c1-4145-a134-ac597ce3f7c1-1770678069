@@ -35,7 +35,7 @@ export default function SignUp() {
         password,
         options: {
           data: {
-            role: role, // Store role in user metadata
+            role: role,
           },
         },
       });
@@ -43,21 +43,22 @@ export default function SignUp() {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        // Check if email confirmation is required
-        // If user.identities is empty, email confirmation is required
-        // If user.identities has data, user is auto-confirmed
-        const needsConfirmation = !data.user.identities || data.user.identities.length === 0;
+        // Wait a moment for the profile to be created by the trigger
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Try to get a session to check if we're logged in
+        const { data: sessionData } = await supabase.auth.getSession();
         
-        if (needsConfirmation) {
-          // Show email confirmation message
-          setSuccess(true);
-        } else {
-          // Email confirmation disabled - redirect to appropriate dashboard
+        if (sessionData.session) {
+          // User is logged in - redirect to dashboard
           const dashboardRoute = role === "consumer" ? "/consumer/dashboard" 
             : role === "transporter" ? "/transporter/dashboard"
             : "/admin/dashboard";
           
           router.push(dashboardRoute);
+        } else {
+          // No session - email confirmation required
+          setSuccess(true);
         }
       }
     } catch (err) {

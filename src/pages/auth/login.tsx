@@ -43,6 +43,7 @@ export default function LoginPage() {
       });
 
       if (authError) {
+        console.error("Auth error:", authError);
         if (authError.message.includes("Email not confirmed")) {
           setError("Please confirm your email address before logging in. Check your inbox for the confirmation link.");
         } else if (authError.message.includes("Invalid login credentials")) {
@@ -54,13 +55,19 @@ export default function LoginPage() {
       }
 
       if (authData.user) {
+        // Wait a moment for database operations to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+
         // Fetch user profile to get role
         const profile = await profileService.getProfile(authData.user.id);
 
         if (!profile) {
-          setError("Profile not found. Please contact support.");
+          setError("Profile not found. Please try signing up again or contact support.");
+          await supabase.auth.signOut();
           return;
         }
+
+        console.log("Login successful. Role:", profile.role);
 
         // Redirect based on role
         switch (profile.role) {

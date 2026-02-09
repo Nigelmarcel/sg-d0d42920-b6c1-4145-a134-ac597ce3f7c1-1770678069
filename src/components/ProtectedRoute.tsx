@@ -22,31 +22,50 @@ export function ProtectedRoute({
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
 
-      if (!session) {
+        if (!session) {
+          console.log("No session found, redirecting to login");
+          router.push(redirectTo);
+          return;
+        }
+
+        // Wait a moment for database operations to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error fetching profile:", error);
+          router.push(redirectTo);
+          return;
+        }
+
+        if (!profile) {
+          console.log("Profile not found, redirecting to login");
+          router.push(redirectTo);
+          return;
+        }
+
+        console.log("User role:", profile.role, "Allowed roles:", allowedRoles);
+
+        if (allowedRoles && !allowedRoles.includes(profile.role)) {
+          console.log("User not authorized for this page");
+          router.push("/unauthorized");
+          return;
+        }
+
+        setIsAuthorized(true);
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Auth check error:", err);
         router.push(redirectTo);
-        return;
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (!profile) {
-        router.push(redirectTo);
-        return;
-      }
-
-      if (allowedRoles && !allowedRoles.includes(profile.role)) {
-        router.push("/unauthorized");
-        return;
-      }
-
-      setIsAuthorized(true);
-      setIsLoading(false);
     };
 
     checkAuth();
