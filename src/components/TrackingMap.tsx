@@ -35,15 +35,21 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
   const [distance, setDistance] = useState<string>("");
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const pickupLocation = {
-    lat: booking.pickup_lat,
-    lng: booking.pickup_lng,
-  };
+  // Validate and convert coordinates
+  const pickupLocation = booking.pickup_lat && booking.pickup_lng ? {
+    lat: Number(booking.pickup_lat),
+    lng: Number(booking.pickup_lng),
+  } : null;
 
-  const dropoffLocation = {
-    lat: booking.dropoff_lat,
-    lng: booking.dropoff_lng,
-  };
+  const dropoffLocation = booking.dropoff_lat && booking.dropoff_lng ? {
+    lat: Number(booking.dropoff_lat),
+    lng: Number(booking.dropoff_lng),
+  } : null;
+
+  // Check if coordinates are valid (not null and not default mock values)
+  const hasValidCoordinates = pickupLocation && dropoffLocation &&
+    !(pickupLocation.lat === 60.1699 && pickupLocation.lng === 24.9384) &&
+    !(dropoffLocation.lat === 60.1699 && dropoffLocation.lng === 24.9384);
 
   useEffect(() => {
     const fetchLocation = async () => {
@@ -91,6 +97,7 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
       isLoaded &&
       map && 
       transporterLocation && 
+      dropoffLocation &&
       (booking.status === "en_route_pickup" || 
        booking.status === "picked_up" || 
        booking.status === "en_route_dropoff")
@@ -148,6 +155,39 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
     );
   }
 
+  if (!hasValidCoordinates) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="w-5 h-5" />
+            Real-time Tracking
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <MapPin className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-semibold mb-2">Location data unavailable</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              This booking was created with invalid coordinates.
+            </p>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 text-sm text-left">
+              <p className="font-semibold mb-1">📍 Addresses on file:</p>
+              <p className="text-gray-700 dark:text-gray-300">
+                <strong>Pickup:</strong> {booking.pickup_address}
+              </p>
+              <p className="text-gray-700 dark:text-gray-300">
+                <strong>Dropoff:</strong> {booking.dropoff_address}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const mapCenter = transporterLocation || pickupLocation || defaultCenter;
+
   return (
     <Card>
       <CardHeader>
@@ -176,7 +216,7 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
         <LoadScript googleMapsApiKey={apiKey} onLoad={onLoadScript}>
           <GoogleMap
             mapContainerStyle={mapContainerStyle}
-            center={transporterLocation || pickupLocation}
+            center={mapCenter}
             zoom={13}
             onLoad={onLoad}
             options={{
@@ -186,41 +226,56 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
               fullscreenControl: true,
             }}
           >
-            {isLoaded && (
-              <>
-                <Marker
-                  position={pickupLocation}
-                  icon={{
-                    url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                    scaledSize: new google.maps.Size(40, 40),
-                  }}
-                  label="Pickup"
-                />
-
-                <Marker
-                  position={dropoffLocation}
-                  icon={{
-                    url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
-                    scaledSize: new google.maps.Size(40, 40),
-                  }}
-                  label="Dropoff"
-                />
-
-                {transporterLocation && (
-                  <Marker
-                    position={transporterLocation}
-                    icon={{
-                      url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                      scaledSize: new google.maps.Size(50, 50),
-                    }}
-                    label={userRole === "consumer" ? "Driver" : "You"}
-                    animation={google.maps.Animation.BOUNCE}
-                  />
-                )}
-
-                {directions && <DirectionsRenderer directions={directions} />}
-              </>
+            {isLoaded && pickupLocation && (
+              <Marker
+                position={pickupLocation}
+                icon={{
+                  url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                  scaledSize: new google.maps.Size(40, 40),
+                }}
+                label={{
+                  text: "Pickup",
+                  color: "white",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+              />
             )}
+
+            {isLoaded && dropoffLocation && (
+              <Marker
+                position={dropoffLocation}
+                icon={{
+                  url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                  scaledSize: new google.maps.Size(40, 40),
+                }}
+                label={{
+                  text: "Dropoff",
+                  color: "white",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+              />
+            )}
+
+            {isLoaded && transporterLocation && (
+              <Marker
+                position={transporterLocation}
+                icon={{
+                  url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                  scaledSize: new google.maps.Size(50, 50),
+                }}
+                label={{
+                  text: userRole === "consumer" ? "Driver" : "You",
+                  color: "white",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+                animation={google.maps.Animation.BOUNCE}
+              />
+            )}
+
+            {isLoaded && directions && <DirectionsRenderer directions={directions} />}
           </GoogleMap>
         </LoadScript>
 
@@ -228,10 +283,20 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
           <div>
             <p className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Pickup</p>
             <p className="text-gray-600 dark:text-gray-400">{booking.pickup_address}</p>
+            {pickupLocation && (
+              <p className="text-xs text-gray-500 mt-1">
+                {pickupLocation.lat.toFixed(6)}, {pickupLocation.lng.toFixed(6)}
+              </p>
+            )}
           </div>
           <div>
             <p className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Dropoff</p>
             <p className="text-gray-600 dark:text-gray-400">{booking.dropoff_address}</p>
+            {dropoffLocation && (
+              <p className="text-xs text-gray-500 mt-1">
+                {dropoffLocation.lat.toFixed(6)}, {dropoffLocation.lng.toFixed(6)}
+              </p>
+            )}
           </div>
         </div>
       </CardContent>
