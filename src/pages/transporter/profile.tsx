@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { User, Mail, Phone, Calendar, Package, DollarSign, Star, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard } from "lucide-react";
+import { User, Mail, Phone, Calendar, Package, DollarSign, Star, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard, Save, ArrowLeft, Home } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -183,41 +183,21 @@ export default function TransporterProfile() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
-          <div className="mb-8">
+          <div className="flex items-center justify-between mb-8">
             <Button
-              variant="ghost"
+              variant="outline"
               onClick={() => router.push("/transporter/dashboard")}
-              className="mb-4"
             >
-              ← Back to Dashboard
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
             </Button>
-            
-            <div className="flex items-start gap-6">
-              <Avatar className="h-24 w-24">
-                <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                  {getInitials(profile?.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1">
-                <h1 className="text-4xl font-bold mb-2">{profile?.full_name || "Transporter"}</h1>
-                <p className="text-muted-foreground flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  {profile?.email}
-                </p>
-                <div className="flex gap-2 mt-3">
-                  <Badge variant="secondary">Transporter</Badge>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
-                    <Star className="h-3 w-3 mr-1 fill-current" />
-                    {stats.averageRating.toFixed(1)} Rating
-                  </Badge>
-                  <Badge variant="outline">
-                    <Calendar className="h-3 w-3 mr-1" />
-                    Joined {profile?.created_at && format(new Date(profile.created_at), "MMM yyyy")}
-                  </Badge>
-                </div>
-              </div>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/")}
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Home
+            </Button>
           </div>
 
           {/* Stats Cards */}

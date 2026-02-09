@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Package, 
   MapPin, 
@@ -17,7 +18,9 @@ import {
   Clock,
   AlertCircle,
   Euro,
-  Navigation
+  Navigation,
+  Home,
+  LogOut
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { bookingService } from "@/services/bookingService";
@@ -51,12 +54,14 @@ export default function TransporterDashboard() {
 
 function TransporterDashboardContent() {
   const router = useRouter();
+  const { toast } = useToast();
   const [isOnline, setIsOnline] = useState(false);
   const [availableJobs, setAvailableJobs] = useState<Booking[]>([]);
   const [myJobs, setMyJobs] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
+  const [acceptingJobId, setAcceptingJobId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     todayEarnings: 0,
     activeJobs: 0,
@@ -146,26 +151,63 @@ function TransporterDashboardContent() {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
   const handleAcceptJob = async (bookingId: string) => {
+    if (acceptingJobId) return; // Prevent double-clicks
+
     const confirmed = confirm("Accept this job?");
     if (!confirmed) return;
 
-    const success = await bookingService.acceptBooking(bookingId, userId);
-    if (success) {
-      alert("Job accepted successfully!");
-      fetchJobs();
-    } else {
-      alert("Failed to accept job. It may have been taken by another driver.");
+    setAcceptingJobId(bookingId);
+
+    try {
+      const success = await bookingService.acceptBooking(bookingId, userId);
+      
+      if (success) {
+        toast({
+          title: "Success!",
+          description: "Job accepted successfully!",
+          variant: "default",
+        });
+        await fetchJobs();
+      } else {
+        toast({
+          title: "Unable to Accept Job",
+          description: "This job may have been taken by another driver. Please try another job.",
+          variant: "destructive",
+        });
+        await fetchJobs(); // Refresh to remove the taken job
+      }
+    } catch (error) {
+      console.error("Error accepting job:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAcceptingJobId(null);
     }
   };
 
   const handleUpdateStatus = async (bookingId: string, newStatus: BookingStatus) => {
     const success = await bookingService.updateBookingStatus(bookingId, newStatus);
     if (success) {
-      alert(`Status updated to: ${STATUS_CONFIG[newStatus].label}`);
-      fetchJobs();
+      toast({
+        title: "Status Updated",
+        description: `Status updated to: ${STATUS_CONFIG[newStatus].label}`,
+      });
+      await fetchJobs();
     } else {
-      alert("Failed to update status. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to update status. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -187,7 +229,25 @@ function TransporterDashboardContent() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Driver Dashboard</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-4xl font-bold">Driver Dashboard</h1>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => router.push("/")}
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </div>
           <p className="text-gray-600 dark:text-gray-400">{userEmail}</p>
         </div>
 
@@ -353,9 +413,10 @@ function TransporterDashboardContent() {
                         <Button
                           onClick={() => handleAcceptJob(job.id)}
                           className="bg-green-600 hover:bg-green-700"
+                          disabled={acceptingJobId === job.id}
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
-                          Accept Job
+                          {acceptingJobId === job.id ? "Accepting..." : "Accept Job"}
                         </Button>
                       </div>
                     </CardContent>

@@ -15,7 +15,8 @@ import {
   CheckCircle,
   XCircle,
   Truck,
-  AlertCircle
+  AlertCircle,
+  Home
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { bookingService } from "@/services/bookingService";
@@ -139,7 +140,16 @@ function ConsumerDashboardContent() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Welcome back!</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-4xl font-bold">Welcome back!</h1>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/")}
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Home
+            </Button>
+          </div>
           <p className="text-gray-600 dark:text-gray-400">{userEmail}</p>
         </div>
 

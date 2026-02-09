@@ -256,21 +256,31 @@ export const bookingService = {
   // Accept a booking (transporter)
   async acceptBooking(bookingId: string, transporterId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      // Update booking with optimistic locking
+      // Only update if status is still 'pending' AND transporter_id is null
+      const { data, error } = await supabase
         .from("bookings")
-        .update({
-          transporter_id: transporterId,
+        .update({ 
           status: "accepted",
-          accepted_at: new Date().toISOString(),
+          transporter_id: transporterId 
         })
         .eq("id", bookingId)
-        .eq("status", "pending");
+        .eq("status", "pending")
+        .is("transporter_id", null)
+        .select();
 
       if (error) {
         console.error("Error accepting booking:", error);
         return false;
       }
 
+      // Check if update was successful (at least one row updated)
+      if (!data || data.length === 0) {
+        console.log("Booking was already taken or doesn't exist");
+        return false;
+      }
+
+      console.log("Booking accepted successfully:", data[0]);
       return true;
     } catch (error) {
       console.error("Error in acceptBooking:", error);

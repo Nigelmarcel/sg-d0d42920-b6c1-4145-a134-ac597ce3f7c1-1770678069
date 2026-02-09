@@ -17,11 +17,11 @@ export default function Home() {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .maybeSingle();
+        const { data } = await supabase.
+        from("profiles").
+        select("role").
+        eq("id", session.user.id).
+        maybeSingle();
         if (data) setUserRole(data.role);
       }
     };
@@ -182,7 +182,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <Truck className="h-6 w-6 text-primary" />
-              <span className="font-semibold">MoveIt Helsinki</span>
+              <span className="font-semibold">VANGO Helsinki</span>
             </div>
             <div className="text-sm text-muted-foreground">
               © 2026 MoveIt Helsinki. Built with Softgen.
