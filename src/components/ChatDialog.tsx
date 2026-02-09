@@ -7,8 +7,8 @@ import { chatService, type ChatMessage } from "@/services/chatService";
 import { photoService } from "@/services/photoService";
 import { authService } from "@/services/authService";
 
-// Use the interface from service to ensure consistency
-interface Message extends ChatMessage {}
+// Use type alias instead of empty interface extension
+type Message = ChatMessage;
 
 interface ChatDialogProps {
   isOpen: boolean;
