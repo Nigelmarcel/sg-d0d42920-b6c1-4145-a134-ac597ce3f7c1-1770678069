@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -121,13 +122,21 @@ function BookMoveContent() {
 
     setIsSubmitting(true);
     try {
-      const booking = await bookingService.createBooking(formData as BookingFormData);
+      const { data: { user } } = await supabase.auth.getUser();
       
-      if (booking) {
+      if (!user) {
+        alert("You must be logged in to create a booking");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const booking = await bookingService.createBooking(user.id, formData as BookingFormData);
+      
+      if (booking && booking.success) {
         // Success! Redirect to dashboard
         router.push("/consumer/dashboard?booking=created");
       } else {
-        alert("Failed to create booking. Please try again.");
+        alert(booking?.error || "Failed to create booking. Please try again.");
       }
     } catch (error) {
       console.error("Error submitting booking:", error);
