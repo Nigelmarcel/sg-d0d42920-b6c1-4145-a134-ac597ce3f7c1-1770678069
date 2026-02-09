@@ -29,7 +29,7 @@ export default function SignUp() {
     setLoading(true);
 
     try {
-      // Sign up the user - Supabase will send confirmation email
+      // Sign up the user
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -43,8 +43,22 @@ export default function SignUp() {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        // Show success message - profile will be created by trigger after email confirmation
-        setSuccess(true);
+        // Check if email confirmation is required
+        // If user.identities is empty, email confirmation is required
+        // If user.identities has data, user is auto-confirmed
+        const needsConfirmation = !data.user.identities || data.user.identities.length === 0;
+        
+        if (needsConfirmation) {
+          // Show email confirmation message
+          setSuccess(true);
+        } else {
+          // Email confirmation disabled - redirect to appropriate dashboard
+          const dashboardRoute = role === "consumer" ? "/consumer/dashboard" 
+            : role === "transporter" ? "/transporter/dashboard"
+            : "/admin/dashboard";
+          
+          router.push(dashboardRoute);
+        }
       }
     } catch (err) {
       console.error("Signup error:", err);
