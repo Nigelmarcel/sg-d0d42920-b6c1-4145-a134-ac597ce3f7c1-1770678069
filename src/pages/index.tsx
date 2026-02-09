@@ -52,7 +52,7 @@ export default function Home() {
             <Truck className="h-12 w-12 text-primary" />
             <h1 className="text-5xl font-bold">VANGO</h1>
           </div>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">Cargo transport on demand in Helsinki made simple. Connect with verified transporters for your furniture, appliances, and home moves.
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">Cargo transporting on demand in Helsinki area made simple. Connect with verified transporters for your furniture, appliances, and home moves.
 
 
           </p>
