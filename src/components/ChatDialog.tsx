@@ -35,6 +35,7 @@ export function ChatDialog({
   const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && bookingId) {
@@ -89,21 +90,43 @@ export function ChatDialog({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setPreviewPhoto(previewUrl);
+    
+    // Store file for later upload
+    fileInputRef.current!.dataset.pendingFile = file.name;
+  };
+
+  const handleSendPhotoMessage = async () => {
+    const fileInput = fileInputRef.current;
+    if (!fileInput?.files?.[0]) return;
+
     setIsUploading(true);
     try {
+      const file = fileInput.files[0];
       const result = await photoService.uploadPhoto(file, bookingId, currentUserId);
       if (result) {
         await chatService.sendPhoto(bookingId, currentUserId, result.url);
         await loadMessages();
+        setPreviewPhoto(null);
+        fileInput.value = "";
       }
     } catch (error) {
       console.error("Failed to upload photo:", error);
       alert(error instanceof Error ? error.message : "Failed to upload photo");
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    }
+  };
+
+  const handleDiscardPhoto = () => {
+    if (previewPhoto) {
+      URL.revokeObjectURL(previewPhoto);
+    }
+    setPreviewPhoto(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -190,6 +213,26 @@ export function ChatDialog({
 
         {/* Input */}
         <div className="p-6 pt-4 border-t bg-background">
+          {/* Photo Preview */}
+          {previewPhoto && (
+            <div className="mb-4 relative inline-block">
+              <img
+                src={previewPhoto}
+                alt="Preview"
+                className="max-w-xs max-h-48 rounded-lg border-2 border-primary"
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="destructive"
+                onClick={handleDiscardPhoto}
+                className="absolute -top-2 -right-2 h-8 w-8 rounded-full shadow-lg"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           <form onSubmit={handleSendMessage} className="flex items-center gap-3">
             <input
               ref={fileInputRef}
@@ -225,10 +268,16 @@ export function ChatDialog({
             <Button 
               type="submit" 
               size="icon"
-              disabled={!newMessage.trim() || isLoading || isUploading}
+              disabled={(!newMessage.trim() && !previewPhoto) || isLoading || isUploading}
+              onClick={(e) => {
+                if (previewPhoto) {
+                  e.preventDefault();
+                  handleSendPhotoMessage();
+                }
+              }}
               className="shrink-0 shadow-soft"
             >
-              {isLoading ? (
+              {isLoading || isUploading ? (
                 <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Send className="h-5 w-5" />

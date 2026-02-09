@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { bookingService } from "@/services/bookingService";
 import { geocodingService } from "@/services/geocodingService";
 import { authService } from "@/services/authService";
-import { Calendar, MapPin, Package, FileText, Clock, CheckCircle2 } from "lucide-react";
+import { Calendar, MapPin, Package, FileText, Clock, CheckCircle2, X, Loader2, Navigation } from "lucide-react";
 
 type DeliverySize = "small" | "medium" | "large";
 
@@ -268,10 +268,53 @@ export default function BookMove() {
     }
   };
 
+  const handleDiscard = () => {
+    if (window.confirm("Are you sure you want to discard this booking? All fields will be cleared.")) {
+      setPickupAddress("");
+      setDropoffAddress("");
+      setDeliverySize("medium");
+      setItemDescription("");
+      setSpecialInstructions("");
+      setScheduledDate("");
+      setScheduledTime("");
+      setUseAsap(false);
+      setPhotos([]);
+      setEstimatedPrice(null);
+      setDistance(null);
+    }
+  };
+
   const getMinDateTime = () => {
     const now = new Date();
     now.setHours(now.getHours() + 2); // Minimum 2 hours from now
     return now.toISOString().slice(0, 16);
+  };
+
+  const handleDiscardForm = () => {
+    if (pickupAddress || dropoffAddress || itemDescription || specialInstructions) {
+      const confirmed = window.confirm(
+        "Are you sure you want to discard this booking? All entered information will be lost."
+      );
+      if (!confirmed) return;
+    }
+    
+    // Reset all fields
+    setPickupAddress("");
+    setDropoffAddress("");
+    setDeliverySize("medium");
+    setItemDescription("");
+    setSpecialInstructions("");
+    setScheduledDate("");
+    setScheduledTime("");
+    setUseAsap(false);
+    setPhotos([]);
+    setEstimatedPrice(null);
+    setDistance(null);
+    
+    toast({
+      title: "Form Cleared",
+      description: "All fields have been reset",
+    });
   };
 
   return (
@@ -515,21 +558,44 @@ export default function BookMove() {
               />
             </Card>
 
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              size="lg"
-              disabled={loading || !pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))}
-              className="w-full bg-gradient-to-r from-blue-600 to-orange-600 hover:from-blue-700 hover:to-orange-700 text-white font-semibold text-lg py-6"
-            >
-              {loading ? (
-                "Creating Booking..."
-              ) : useAsap ? (
-                "🚀 Request ASAP Pickup"
-              ) : (
-                `📅 Schedule Move ${estimatedPrice ? `- €${estimatedPrice.toFixed(2)}` : ""}`
-              )}
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+              <Button
+                type="button"
+                size="lg"
+                variant="outline"
+                onClick={handleDiscardForm}
+                disabled={loading}
+                className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10"
+              >
+                <X className="h-5 w-5 mr-2" />
+                Discard
+              </Button>
+              
+              <Button
+                type="submit"
+                size="lg"
+                disabled={loading || !pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))}
+                className="flex-1 bg-gradient-to-r from-navy-900 to-gold hover:from-navy-950 hover:to-gold/90 text-white font-semibold text-lg py-6"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : useAsap ? (
+                  <>
+                    <Navigation className="h-5 w-5 mr-2" />
+                    Request ASAP
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Schedule Move {estimatedPrice ? `- €${estimatedPrice.toFixed(2)}` : ""}
+                  </>
+                )}
+              </Button>
+            </div>
           </form>
         </div>
       </div>
