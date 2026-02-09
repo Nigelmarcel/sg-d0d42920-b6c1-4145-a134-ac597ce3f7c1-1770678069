@@ -39,6 +39,7 @@ import {
   Trash2
 } from "lucide-react";
 import { ChatDialog } from "@/components/ChatDialog";
+import { TrackingMap } from "@/components/TrackingMap";
 
 type StatusFilter = "all" | "pending" | "accepted" | "in_transit" | "delivered" | "cancelled";
 
@@ -74,6 +75,10 @@ export default function ConsumerDashboard() {
   // Chat dialog state
   const [chatOpen, setChatOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+
+  // Tracking state
+  const [trackingOpen, setTrackingOpen] = useState(false);
+  const [trackingBooking, setTrackingBooking] = useState<Booking | null>(null);
 
   // Fetch user profile
   useEffect(() => {
@@ -357,6 +362,29 @@ export default function ConsumerDashboard() {
     setChatOpen(false);
     setSelectedBooking(null);
   };
+
+  const handleOpenTracking = (booking: Booking) => {
+    setTrackingBooking(booking);
+    setTrackingOpen(true);
+  };
+
+  const handleCloseTracking = () => {
+    setTrackingOpen(false);
+    setTrackingBooking(null);
+    // Remove query parameter
+    router.push("/consumer/dashboard", undefined, { shallow: true });
+  };
+
+  // Check for tracking query parameter
+  useEffect(() => {
+    const { tracking } = router.query;
+    if (tracking && typeof tracking === "string" && allBookings.length > 0) {
+      const booking = allBookings.find(b => b.id === tracking);
+      if (booking && ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"].includes(booking.status)) {
+        handleOpenTracking(booking);
+      }
+    }
+  }, [router.query, allBookings]);
 
   if (!profile) {
     return (
@@ -740,7 +768,7 @@ export default function ConsumerDashboard() {
                       {["accepted", "in_transit"].includes(booking.status) && (
                         <>
                           <Button
-                            onClick={() => router.push(`/consumer/dashboard?tracking=${booking.id}`)}
+                            onClick={() => handleOpenTracking(booking)}
                             className="bg-navy-900 hover:bg-navy-950 w-full"
                           >
                             <Navigation className="h-4 w-4 mr-2" />
@@ -831,6 +859,63 @@ export default function ConsumerDashboard() {
           otherUserName={selectedBooking.transporter_name}
           otherUserRole="transporter"
         />
+      )}
+
+      {/* Tracking Map Dialog */}
+      {trackingBooking && trackingOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <div className="fixed inset-4 z-50 bg-background rounded-lg shadow-lg overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Live Tracking</h2>
+                <p className="text-sm text-muted-foreground">
+                  Real-time location of your delivery
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseTracking}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Map Content */}
+            <div className="flex-1 overflow-auto p-4">
+              <TrackingMap
+                booking={trackingBooking}
+                userRole="consumer"
+              />
+            </div>
+
+            {/* Footer with booking details */}
+            <div className="p-4 border-t bg-muted/50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {trackingBooking.item_description || "Item"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Status: {getStatusLabel(trackingBooking.status)}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    handleCloseTracking();
+                    handleOpenChat(trackingBooking);
+                  }}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Chat with Driver
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </ProtectedRoute>
   );
