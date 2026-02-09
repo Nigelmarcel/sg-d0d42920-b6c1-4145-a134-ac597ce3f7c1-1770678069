@@ -119,28 +119,80 @@ export default function BookMove() {
   };
 
   const loadGoogleMapsScript = () => {
-    if (typeof window !== "undefined" && !window.google) {
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = initAutocomplete;
-      document.head.appendChild(script);
-    } else if (window.google) {
+    if (typeof window === "undefined") return;
+
+    // Check if Google Maps is already loaded
+    if (window.google?.maps?.places) {
       initAutocomplete();
+      return;
     }
+
+    // Check if script is already being loaded
+    const existingScript = document.querySelector(
+      'script[src*="maps.googleapis.com"]'
+    );
+    if (existingScript) {
+      existingScript.addEventListener("load", initAutocomplete);
+      return;
+    }
+
+    // Load Google Maps script
+    const script = document.createElement("script");
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    
+    if (!apiKey) {
+      console.error("Google Maps API key is missing");
+      toast({
+        title: "Configuration Error",
+        description: "Google Maps is not configured. Please contact support.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = initAutocomplete;
+    script.onerror = () => {
+      console.error("Failed to load Google Maps script");
+      toast({
+        title: "Map Loading Failed",
+        description: "Could not load Google Maps. Please refresh the page.",
+        variant: "destructive"
+      });
+    };
+    document.head.appendChild(script);
   };
 
   const initAutocomplete = () => {
-    if (!window.google || !pickupInputRef.current || !dropoffInputRef.current) return;
+    if (!window.google?.maps?.places) {
+      console.error("Google Maps Places library not loaded");
+      return;
+    }
 
-    const options = {
-      componentRestrictions: { country: "fi" },
-      fields: ["formatted_address", "geometry"]
-    };
+    if (!pickupInputRef.current || !dropoffInputRef.current) {
+      // Retry after a short delay if refs aren't ready
+      setTimeout(initAutocomplete, 100);
+      return;
+    }
 
-    new window.google.maps.places.Autocomplete(pickupInputRef.current, options);
-    new window.google.maps.places.Autocomplete(dropoffInputRef.current, options);
+    try {
+      const options = {
+        componentRestrictions: { country: "fi" },
+        fields: ["formatted_address", "geometry"]
+      };
+
+      new window.google.maps.places.Autocomplete(pickupInputRef.current, options);
+      new window.google.maps.places.Autocomplete(dropoffInputRef.current, options);
+    } catch (error) {
+      console.error("Error initializing autocomplete:", error);
+      toast({
+        title: "Address Autocomplete Error",
+        description: "You can still type addresses manually.",
+        variant: "destructive"
+      });
+    }
   };
 
   const calculatePrice = async () => {
@@ -151,17 +203,19 @@ export default function BookMove() {
     }
 
     try {
+      console.log("🔍 Calculating price for:", { pickupAddress, dropoffAddress });
+
       const pickupCoords = await geocodingService.geocodeAddress(pickupAddress);
       const dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
 
       if (!pickupCoords || !dropoffCoords) {
-        toast({
-          title: "Address Error",
-          description: "Could not find one or both addresses. Please check and try again.",
-          variant: "destructive"
-        });
+        console.error("❌ Could not geocode addresses");
+        setEstimatedPrice(null);
+        setDistance(null);
         return;
       }
+
+      console.log("✅ Coordinates:", { pickupCoords, dropoffCoords });
 
       const calculatedDistance = geocodingService.calculateDistance(
         pickupCoords.lat,
@@ -184,13 +238,11 @@ export default function BookMove() {
       const total = basePrice + distancePrice;
 
       setEstimatedPrice(total);
+      console.log("💰 Price calculated:", { distance: calculatedDistance, price: total });
     } catch (error) {
-      console.error("Error calculating price:", error);
-      toast({
-        title: "Calculation Error",
-        description: "Could not calculate price. Please try again.",
-        variant: "destructive"
-      });
+      console.error("❌ Error calculating price:", error);
+      setEstimatedPrice(null);
+      setDistance(null);
     }
   };
 
@@ -234,22 +286,48 @@ export default function BookMove() {
     setLoading(true);
 
     try {
+      console.log("🚀 Starting booking creation...");
+      console.log("📍 Geocoding pickup address:", pickupAddress);
+      
       const pickupCoords = await geocodingService.geocodeAddress(pickupAddress);
-      const dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
-
-      if (!pickupCoords || !dropoffCoords) {
+      if (!pickupCoords) {
         toast({
-          title: "Address Error",
-          description: "Could not verify addresses. Please check and try again.",
+          title: "Invalid Pickup Address",
+          description: "Could not find the pickup address. Please check and try again.",
           variant: "destructive"
         });
         setLoading(false);
         return;
       }
 
+      console.log("✅ Pickup coordinates:", pickupCoords);
+      console.log("📍 Geocoding dropoff address:", dropoffAddress);
+
+      const dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
+      if (!dropoffCoords) {
+        toast({
+          title: "Invalid Dropoff Address",
+          description: "Could not find the dropoff address. Please check and try again.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log("✅ Dropoff coordinates:", dropoffCoords);
+
       const scheduledAt = useAsap 
         ? new Date().toISOString()
         : new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+
+      console.log("📝 Creating booking with data:", {
+        pickupAddress,
+        pickupCoords,
+        dropoffAddress,
+        dropoffCoords,
+        deliverySize,
+        scheduledAt
+      });
 
       await bookingService.createBooking(userId, {
         pickupAddress,
@@ -265,6 +343,8 @@ export default function BookMove() {
         itemPhotos: photos.length > 0 ? photos : undefined
       });
 
+      console.log("✅ Booking created successfully!");
+
       toast({
         title: "✅ Booking Created",
         description: useAsap ? "Your move request is now live! Transporters will be notified." : "Your move has been scheduled successfully!",
@@ -272,10 +352,10 @@ export default function BookMove() {
 
       router.push("/consumer/dashboard");
     } catch (error) {
-      console.error("Error creating booking:", error);
+      console.error("❌ Error creating booking:", error);
       toast({
         title: "Booking Failed",
-        description: "Could not create booking. Please try again.",
+        description: error instanceof Error ? error.message : "Could not create booking. Please try again.",
         variant: "destructive"
       });
     } finally {
