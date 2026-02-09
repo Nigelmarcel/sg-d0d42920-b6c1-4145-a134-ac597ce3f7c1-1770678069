@@ -15,17 +15,17 @@ import { cn } from "@/lib/utils";
 import { bookingService, calculatePrice, type BookingFormData } from "@/services/bookingService";
 
 const ITEM_TYPES = [
-  { value: "small_furniture", label: "Small Furniture" },
-  { value: "large_furniture", label: "Large Furniture" },
-  { value: "appliances", label: "Appliances" },
-  { value: "fragile", label: "Fragile Items" },
-  { value: "home_move", label: "Full Home Move" },
+  { value: "small_furniture", label: "Small Furniture", description: "Chairs, small tables, lamps" },
+  { value: "large_furniture", label: "Large Furniture", description: "Sofas, beds, wardrobes" },
+  { value: "appliances", label: "Appliances", description: "Washing machines, fridges, ovens" },
+  { value: "fragile", label: "Fragile Items", description: "Glassware, mirrors, artwork" },
+  { value: "home_move", label: "Full Home Move", description: "Complete apartment/house move" },
 ];
 
 const ITEM_SIZES = [
-  { value: "small", label: "Small (fits in car trunk)", price: "1x" },
-  { value: "medium", label: "Medium (sofa, washing machine)", price: "1.5x" },
-  { value: "large", label: "Large (fridge, wardrobe)", price: "2x" },
+  { value: "small", label: "Small", description: "Fits in car trunk", price: "1x" },
+  { value: "medium", label: "Medium", description: "Sofa, washing machine", price: "1.5x" },
+  { value: "large", label: "Large", description: "Fridge, wardrobe, king bed", price: "2x" },
 ];
 
 export default function BookMove() {
@@ -252,7 +252,10 @@ function BookMoveContent() {
                   <SelectContent>
                     {ITEM_TYPES.map((type) => (
                       <SelectItem key={type.value} value={type.value}>
-                        {type.label}
+                        <div className="flex flex-col">
+                          <span className="font-medium">{type.label}</span>
+                          <span className="text-xs text-gray-500">{type.description}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -272,15 +275,18 @@ function BookMoveContent() {
                     {ITEM_SIZES.map((size) => (
                       <SelectItem key={size.value} value={size.value}>
                         <div className="flex items-center justify-between w-full">
-                          <span>{size.label}</span>
-                          <span className="ml-4 text-sm text-gray-500">{size.price}</span>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{size.label}</span>
+                            <span className="text-xs text-gray-500">{size.description}</span>
+                          </div>
+                          <span className="ml-4 text-sm text-blue-600 font-semibold">{size.price}</span>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-gray-500">
-                  Size affects the final price
+                  Size multiplier affects the final price
                 </p>
               </div>
 
