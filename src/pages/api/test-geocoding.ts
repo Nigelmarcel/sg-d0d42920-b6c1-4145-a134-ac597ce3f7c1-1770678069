@@ -8,9 +8,8 @@ interface TestResult {
     lat: number;
     lng: number;
   };
-  formattedAddress?: string;
+  formatted_address?: string;
   error?: string;
-  isMock?: boolean;
 }
 
 export default async function handler(
@@ -43,9 +42,6 @@ export default async function handler(
       const coordinates = await geocodingService.geocodeAddress(address);
 
       if (coordinates) {
-        // Check if this is mock data (mock data has predictable pattern)
-        const isMock = coordinates.lat.toString().includes("99");
-        
         results.push({
           address,
           success: true,
@@ -53,16 +49,15 @@ export default async function handler(
             lat: coordinates.lat,
             lng: coordinates.lng,
           },
-          formatted_address: coordinates.formattedAddress || address,
-          isMock,
+          formatted_address: coordinates.formatted_address || address,
         });
 
-        console.log(`✅ Success: ${coordinates.lat}, ${coordinates.lng}${isMock ? " (MOCK)" : " (REAL)"}`);
+        console.log(`✅ Success: ${coordinates.lat}, ${coordinates.lng}`);
       } else {
         results.push({
           address,
           success: false,
-          error: "No coordinates returned",
+          error: "No coordinates returned (Address not found or API error)",
         });
         console.log(`❌ Failed: No coordinates returned`);
       }
@@ -82,7 +77,7 @@ export default async function handler(
 
   // Calculate distance between two points to verify accuracy
   let distanceTest;
-  if (results[0].coordinates && results[3].coordinates) {
+  if (results[0].success && results[3].success && results[0].coordinates && results[3].coordinates) {
     const distance = geocodingService.calculateDistance(
       results[0].coordinates.lat,
       results[0].coordinates.lng,
@@ -94,27 +89,21 @@ export default async function handler(
       from: results[0].address,
       to: results[3].address,
       distance: `${distance.toFixed(2)} km`,
-      expected: "~18 km",
+      expected: "~15-18 km",
     };
 
     console.log(`\n📏 Distance Test: ${distanceTest.from} → ${distanceTest.to}`);
     console.log(`   Calculated: ${distanceTest.distance}`);
-    console.log(`   Expected: ${distanceTest.expected}`);
   }
 
   // Summary
   const successCount = results.filter(r => r.success).length;
-  const mockCount = results.filter(r => r.isMock).length;
-  const realCount = results.filter(r => r.success && !r.isMock).length;
-
   const apiKeyConfigured = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   console.log("\n📊 Validation Summary:");
   console.log(`   API Key Configured: ${apiKeyConfigured ? "✅ Yes" : "❌ No"}`);
   console.log(`   Total Tests: ${testAddresses.length}`);
   console.log(`   Successful: ${successCount}`);
-  console.log(`   Real API Responses: ${realCount}`);
-  console.log(`   Mock Responses: ${mockCount}`);
   console.log(`   Failed: ${testAddresses.length - successCount}`);
 
   return res.status(200).json({
@@ -122,16 +111,12 @@ export default async function handler(
     summary: {
       total: testAddresses.length,
       successful: successCount,
-      realApiResponses: realCount,
-      mockResponses: mockCount,
       failed: testAddresses.length - successCount,
     },
     results,
     distanceTest,
-    message: realCount > 0 
+    message: successCount > 0 
       ? "✅ Google Maps API is working correctly!"
-      : mockCount > 0
-      ? "⚠️ Using mock geocoding (API key may be invalid)"
       : "❌ Geocoding failed",
   });
 }
