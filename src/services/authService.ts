@@ -236,6 +236,16 @@ export const authService = {
     return data;
   },
 
+  // Get profile (alias for getUserById)
+  async getProfile(userId: string) {
+    return this.getUserById(userId);
+  },
+
+  // Get session (alias for getCurrentSession)
+  async getSession() {
+    return this.getCurrentSession();
+  },
+
   // Delete user account
   async deleteAccount(userId: string) {
     const { data } = await supabase

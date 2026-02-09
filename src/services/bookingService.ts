@@ -2,12 +2,13 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { geocodingService } from "./geocodingService";
 
-type Booking = Database["public"]["Tables"]["bookings"]["Row"];
+export type Booking = Database["public"]["Tables"]["bookings"]["Row"];
+export type BookingStatus = Database["public"]["Enums"]["booking_status"];
+
 type BookingInsert = Database["public"]["Tables"]["bookings"]["Insert"];
 type BookingUpdate = Database["public"]["Tables"]["bookings"]["Update"];
 type ItemType = Database["public"]["Enums"]["item_type"];
 type ItemSize = Database["public"]["Enums"]["item_size"];
-type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
 export interface BookingFormData {
   pickupAddress: string;
@@ -283,14 +284,27 @@ export const bookingService = {
     }
   },
 
+  // Get pending bookings (alias for getAvailableBookings)
+  async getPendingBookings(): Promise<Booking[]> {
+    return this.getAvailableBookings();
+  },
+
   // Get all bookings for a transporter
-  async getTransporterBookings(transporterId: string): Promise<Booking[]> {
+  async getTransporterBookings(transporterId: string, statusFilter?: BookingStatus[]): Promise<Booking[]> {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("bookings")
-        .select("*")
-        .eq("transporter_id", transporterId)
-        .order("created_at", { ascending: false });
+        .select(`
+          *,
+          consumer:profiles!bookings_consumer_id_fkey(*)
+        `)
+        .eq("transporter_id", transporterId);
+
+      if (statusFilter && statusFilter.length > 0) {
+        query = query.in("status", statusFilter);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching transporter bookings:", error);

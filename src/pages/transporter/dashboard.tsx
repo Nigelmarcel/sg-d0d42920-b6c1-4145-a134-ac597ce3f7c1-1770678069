@@ -1,244 +1,170 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { supabase } from "@/integrations/supabase/client";
+import { authService } from "@/services/authService";
+import { bookingService } from "@/services/bookingService";
+import type { Booking } from "@/services/bookingService";
+import { LocationTracker } from "@/components/LocationTracker";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Package, 
-  MapPin, 
-  Calendar, 
-  Truck,
-  DollarSign,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  Euro,
-  Navigation,
-  Home,
-  LogOut,
-  TrendingUp,
-  Briefcase,
-  Star,
-  Box,
+  Clock, 
+  CheckCircle2,
+  MapPin,
+  Calendar,
+  Ruler,
   Sofa,
   Zap,
   Wine,
-  PackageOpen,
+  Home,
   FileText,
   Image as ImageIcon,
-  Ruler
+  Loader2
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { bookingService } from "@/services/bookingService";
-import type { Database } from "@/integrations/supabase/types";
-import { format } from "date-fns";
-import { LocationTracker } from "@/components/LocationTracker";
-import { TrackingMap } from "@/components/TrackingMap";
 
-type Booking = Database["public"]["Tables"]["bookings"]["Row"];
-type BookingStatus = Database["public"]["Enums"]["booking_status"];
-type ItemType = Database["public"]["Enums"]["item_type"];
-type ItemSize = Database["public"]["Enums"]["item_size"];
-
-const STATUS_CONFIG: Record<BookingStatus, { 
-  label: string; 
-  variant: "default" | "secondary" | "destructive" | "outline";
-  color: string;
-}> = {
-  pending: { label: "Available", variant: "secondary", color: "text-orange-600" },
-  accepted: { label: "Accepted", variant: "default", color: "text-blue-600" },
-  en_route_pickup: { label: "En Route to Pickup", variant: "default", color: "text-blue-600" },
-  picked_up: { label: "Picked Up", variant: "default", color: "text-purple-600" },
-  en_route_dropoff: { label: "En Route to Dropoff", variant: "default", color: "text-purple-600" },
-  delivered: { label: "Completed", variant: "outline", color: "text-green-600" },
-  cancelled: { label: "Cancelled", variant: "destructive", color: "text-red-600" },
-};
-
-const ITEM_TYPE_CONFIG: Record<ItemType, { label: string; icon: any; color: string }> = {
-  small_furniture: { label: "Small Furniture", icon: Sofa, color: "text-blue-600" },
-  large_furniture: { label: "Large Furniture", icon: Sofa, color: "text-purple-600" },
-  appliances: { label: "Appliances", icon: Zap, color: "text-yellow-600" },
-  fragile: { label: "Fragile Items", icon: Wine, color: "text-red-600" },
-  home_move: { label: "Home Move", icon: Home, color: "text-green-600" },
-};
-
-const ITEM_SIZE_CONFIG: Record<ItemSize, { label: string; badge: string; color: string }> = {
-  small: { label: "Small", badge: "S", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
-  medium: { label: "Medium", badge: "M", color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
-  large: { label: "Large", badge: "L", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },
-};
+type BookingStatus = "pending" | "accepted" | "en_route_pickup" | "picked_up" | "en_route_dropoff" | "delivered" | "cancelled";
+type TabType = "available" | "active" | "completed";
 
 export default function TransporterDashboard() {
-  return (
-    <ProtectedRoute allowedRoles={["transporter"]}>
-      <TransporterDashboardContent />
-    </ProtectedRoute>
-  );
-}
-
-function TransporterDashboardContent() {
   const router = useRouter();
   const { toast } = useToast();
+  
+  const [activeTab, setActiveTab] = useState<TabType>("available");
   const [isOnline, setIsOnline] = useState(false);
   const [availableJobs, setAvailableJobs] = useState<Booking[]>([]);
-  const [myJobs, setMyJobs] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userEmail, setUserEmail] = useState<string>("");
-  const [userId, setUserId] = useState<string>("");
-  const [acceptingJobId, setAcceptingJobId] = useState<string | null>(null);
-  const [stats, setStats] = useState({
-    todayEarnings: 0,
-    activeJobs: 0,
-    completedToday: 0,
-    totalEarnings: 0,
-  });
+  const [activeJobs, setActiveJobs] = useState<Booking[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userName, setUserName] = useState("");
+  const [userId, setUserId] = useState("");
 
   useEffect(() => {
-    fetchUserData();
+    checkAuth();
     fetchJobs();
-
-    // Subscribe to realtime booking updates
-    const channel = supabase
-      .channel("transporter-bookings")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-        },
-        (payload) => {
-          console.log("Booking update:", payload);
-          fetchJobs(); // Refresh jobs on any change
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
-  const fetchUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserEmail(user.email || "");
-      setUserId(user.id);
+  const checkAuth = async () => {
+    const session = await authService.getCurrentSession();
+    if (!session) {
+      router.push("/auth/login");
+      return;
     }
+
+    setUserId(session.user.id);
+
+    const profile = await authService.getUserById(session.user.id);
+    if (profile?.role !== "transporter") {
+      router.push("/unauthorized");
+      return;
+    }
+
+    setUserName(profile.full_name || "Driver");
+    setIsOnline(profile.is_online || false);
   };
 
   const fetchJobs = async () => {
+    setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const session = await authService.getCurrentSession();
+      if (!session) return;
 
       // Fetch available jobs (pending status)
       const available = await bookingService.getAvailableBookings();
       setAvailableJobs(available);
 
-      // Fetch my accepted/active jobs
-      const myBookings = await bookingService.getTransporterBookings(user.id);
-      setMyJobs(myBookings);
-
-      // Calculate stats
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const todayJobs = myBookings.filter(
-        (b) => new Date(b.created_at) >= today
+      // Fetch active jobs (accepted, en_route_pickup, picked_up, en_route_dropoff)
+      const active = await bookingService.getTransporterBookings(
+        session.user.id,
+        ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"]
       );
+      setActiveJobs(active);
 
-      const activeJobs = myBookings.filter(
-        (b) => b.status === "accepted" || 
-             b.status === "en_route_pickup" || 
-             b.status === "picked_up" || 
-             b.status === "en_route_dropoff"
-      ).length;
-
-      const completedToday = todayJobs.filter(
-        (b) => b.status === "delivered"
-      ).length;
-
-      const todayEarnings = todayJobs
-        .filter((b) => b.status === "delivered")
-        .reduce((sum, b) => sum + (b.transporter_earnings || 0), 0);
-
-      const totalEarnings = myBookings
-        .filter((b) => b.status === "delivered")
-        .reduce((sum, b) => sum + (b.transporter_earnings || 0), 0);
-
-      setStats({ todayEarnings, activeJobs, completedToday, totalEarnings });
+      // Fetch completed jobs (delivered)
+      const completed = await bookingService.getTransporterBookings(
+        session.user.id,
+        ["delivered"]
+      );
+      setCompletedJobs(completed);
     } catch (error) {
       console.error("Error fetching jobs:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
-  };
-
-  const handleAcceptJob = async (bookingId: string) => {
-    if (!userId) return;
-
-    setAcceptingJobId(bookingId);
-
-    try {
-      const success = await bookingService.acceptBooking(bookingId, userId);
-      
-      if (success) {
-        toast({
-          title: "Success",
-          description: "Job accepted successfully! Check 'My Jobs' section.",
-        });
-        
-        // Refresh data
-        await fetchJobs();
-      } else {
-        toast({
-          title: "Unable to Accept Job",
-          description: "This job has already been accepted by another driver.",
-          variant: "destructive",
-        });
-        
-        // Refresh available jobs list
-        await fetchJobs();
-      }
-    } catch (error) {
-      console.error("Error accepting job:", error);
       toast({
         title: "Error",
-        description: "An error occurred while accepting the job. Please try again.",
+        description: "Failed to load jobs. Please refresh.",
         variant: "destructive",
       });
     } finally {
-      setAcceptingJobId(null);
+      setIsLoading(false);
+    }
+  };
+
+  const handleOnlineToggle = async (checked: boolean) => {
+    try {
+      const session = await authService.getCurrentSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_online: checked })
+        .eq("id", session.user.id);
+
+      if (error) throw error;
+
+      setIsOnline(checked);
+      toast({
+        title: checked ? "You're Online" : "You're Offline",
+        description: checked 
+          ? "You'll now receive job notifications" 
+          : "You won't receive new job requests",
+      });
+    } catch (error) {
+      console.error("Error updating online status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update online status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAcceptJob = async (bookingId: string) => {
+    const session = await authService.getCurrentSession();
+    if (!session) return;
+
+    const success = await bookingService.acceptBooking(bookingId, session.user.id);
+    if (success) {
+      toast({
+        title: "Job Accepted!",
+        description: "The job has been added to your active jobs.",
+      });
+      await fetchJobs();
+      setActiveTab("active");
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to accept job. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleUpdateStatus = async (bookingId: string, newStatus: BookingStatus) => {
     const success = await bookingService.updateBookingStatus(bookingId, newStatus);
     if (success) {
-      toast({
-        title: "Status Updated",
-        description: `Status updated to: ${STATUS_CONFIG[newStatus].label}`,
-      });
-      
-      // Show special message when delivery is completed
       if (newStatus === "delivered") {
         toast({
           title: "🎉 Delivery Complete!",
           description: "Location tracking has been stopped automatically. Great job!",
         });
+      } else {
+        toast({
+          title: "Status Updated",
+          description: `Job status changed to ${newStatus.replace(/_/g, " ")}`,
+        });
       }
-      
       await fetchJobs();
     } else {
       toast({
@@ -249,365 +175,424 @@ function TransporterDashboardContent() {
     }
   };
 
-  const getNextStatus = (currentStatus: BookingStatus): BookingStatus | null => {
-    const statusFlow: Record<BookingStatus, BookingStatus | null> = {
-      pending: null,
-      accepted: "en_route_pickup",
-      en_route_pickup: "picked_up",
-      picked_up: "en_route_dropoff",
-      en_route_dropoff: "delivered",
-      delivered: null,
-      cancelled: null,
-    };
-    return statusFlow[currentStatus];
+  const getItemIcon = (itemType: string) => {
+    switch (itemType) {
+      case "small_furniture":
+      case "large_furniture":
+        return <Sofa className="w-5 h-5" />;
+      case "appliances":
+        return <Zap className="w-5 h-5" />;
+      case "fragile":
+        return <Wine className="w-5 h-5" />;
+      case "home_move":
+        return <Home className="w-5 h-5" />;
+      default:
+        return <Package className="w-5 h-5" />;
+    }
   };
 
-  const renderItemDetails = (job: Booking) => {
-    const ItemIcon = ITEM_TYPE_CONFIG[job.item_type as ItemType]?.icon || Package;
-    const sizeConfig = ITEM_SIZE_CONFIG[job.item_size as ItemSize];
-    
+  const getItemColor = (itemType: string) => {
+    switch (itemType) {
+      case "small_furniture":
+        return "text-blue-600 bg-blue-50";
+      case "large_furniture":
+        return "text-purple-600 bg-purple-50";
+      case "appliances":
+        return "text-yellow-600 bg-yellow-50";
+      case "fragile":
+        return "text-red-600 bg-red-50";
+      case "home_move":
+        return "text-green-600 bg-green-50";
+      default:
+        return "text-gray-600 bg-gray-50";
+    }
+  };
+
+  const getSizeBadge = (size: string) => {
+    const colors = {
+      small: "bg-blue-100 text-blue-700",
+      medium: "bg-orange-100 text-orange-700",
+      large: "bg-red-100 text-red-700",
+    };
+    return colors[size as keyof typeof colors] || colors.small;
+  };
+
+  const formatItemType = (type: string) => {
+    return type
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, { label: string; className: string }> = {
+      accepted: { label: "Accepted", className: "bg-blue-100 text-blue-700" },
+      en_route_pickup: { label: "En Route to Pickup", className: "bg-purple-100 text-purple-700" },
+      picked_up: { label: "Picked Up", className: "bg-yellow-100 text-yellow-700" },
+      en_route_dropoff: { label: "En Route to Dropoff", className: "bg-orange-100 text-orange-700" },
+      delivered: { label: "Delivered", className: "bg-green-100 text-green-700" },
+    };
+    const variant = variants[status] || { label: status, className: "bg-gray-100 text-gray-700" };
+    return <Badge className={variant.className}>{variant.label}</Badge>;
+  };
+
+  const getNextAction = (status: BookingStatus, bookingId: string) => {
+    switch (status) {
+      case "accepted":
+        return (
+          <Button 
+            onClick={() => handleUpdateStatus(bookingId, "en_route_pickup")} 
+            className="w-full"
+          >
+            Start Trip to Pickup 🚗
+          </Button>
+        );
+      case "en_route_pickup":
+        return (
+          <Button 
+            onClick={() => handleUpdateStatus(bookingId, "picked_up")} 
+            className="w-full"
+          >
+            Confirm Pickup ✅
+          </Button>
+        );
+      case "picked_up":
+        return (
+          <Button 
+            onClick={() => handleUpdateStatus(bookingId, "en_route_dropoff")} 
+            className="w-full"
+          >
+            Start Route to Dropoff 🚗
+          </Button>
+        );
+      case "en_route_dropoff":
+        return (
+          <Button 
+            onClick={() => handleUpdateStatus(bookingId, "delivered")} 
+            className="w-full"
+          >
+            Confirm Delivery ✅
+          </Button>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderJobCard = (booking: Booking, showActions: boolean = true) => {
+    const isActiveJob = booking.status !== "pending" && booking.status !== "delivered";
+    const isJobActive = isActiveJob && 
+      (booking.status === "en_route_pickup" || 
+       booking.status === "en_route_dropoff");
+
     return (
-      <div className="space-y-3">
-        {/* Item Type and Size */}
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-800 ${ITEM_TYPE_CONFIG[job.item_type as ItemType]?.color}`}>
-            <ItemIcon className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
+      <Card key={booking.id} className="hover:shadow-md transition-shadow">
+        <CardContent className="pt-6">
+          {/* Item Type & Earnings */}
+          <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2">
-              <h4 className="font-semibold">
-                {ITEM_TYPE_CONFIG[job.item_type as ItemType]?.label || job.item_type}
-              </h4>
-              <Badge className={`${sizeConfig?.color} font-semibold px-2 py-0.5 text-xs`}>
-                {sizeConfig?.badge || job.item_size}
-              </Badge>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {sizeConfig?.label} package
-            </p>
-          </div>
-        </div>
-
-        {/* Item Photos */}
-        {job.item_photos && job.item_photos.length > 0 && (
-          <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
-            <ImageIcon className="w-4 h-4 text-blue-600" />
-            <span className="text-sm text-blue-700 dark:text-blue-300">
-              {job.item_photos.length} photo{job.item_photos.length > 1 ? "s" : ""} attached
-            </span>
-          </div>
-        )}
-
-        {/* Special Instructions */}
-        {job.special_instructions && (
-          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
-            <div className="flex items-start gap-2">
-              <FileText className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+              <div className={`p-2 rounded-lg ${getItemColor(booking.item_type)}`}>
+                {getItemIcon(booking.item_type)}
+              </div>
               <div>
-                <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
-                  Special Instructions
-                </p>
-                <p className="text-sm text-yellow-900 dark:text-yellow-100">
-                  {job.special_instructions}
-                </p>
+                <h3 className="font-semibold text-lg">
+                  {formatItemType(booking.item_type)}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge className={getSizeBadge(booking.item_size)}>
+                    {booking.item_size.charAt(0).toUpperCase()}
+                  </Badge>
+                  {booking.item_photos && booking.item_photos.length > 0 && (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      <ImageIcon className="w-3 h-3 mr-1" />
+                      {booking.item_photos.length} photos
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-green-600">
+                €{booking.transporter_earnings?.toFixed(2) || "0.00"}
               </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Special Instructions */}
+          {booking.special_instructions && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <div className="flex items-start gap-2">
+                <FileText className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-yellow-900 text-sm">Special Instructions:</p>
+                  <p className="text-yellow-800 text-sm mt-1">{booking.special_instructions}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3 mb-4">
+            {/* Pickup Address */}
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Pickup</p>
+                <p className="text-sm text-gray-600">{booking.pickup_address}</p>
+              </div>
+            </div>
+
+            {/* Dropoff Address */}
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Dropoff</p>
+                <p className="text-sm text-gray-600">{booking.dropoff_address}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t pt-3 mb-4">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <div className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {booking.scheduled_at ? (
+                  new Date(booking.scheduled_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                ) : (
+                  "ASAP"
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <Ruler className="w-4 h-4" />
+                {booking.distance_km?.toFixed(1) || "0.0"} km
+              </div>
+            </div>
+          </div>
+
+          {/* Status Badge (for active/completed jobs) */}
+          {booking.status !== "pending" && (
+            <div className="mb-4">
+              {getStatusBadge(booking.status)}
+            </div>
+          )}
+
+          {/* Location Tracker (for active jobs) */}
+          {isJobActive && userId && (
+            <div className="mb-4">
+              <LocationTracker
+                bookingId={booking.id}
+                isActive={isJobActive}
+                transporterId={userId}
+              />
+            </div>
+          )}
+
+          {/* Actions */}
+          {showActions && (
+            <div>
+              {booking.status === "pending" ? (
+                <Button 
+                  onClick={() => handleAcceptJob(booking.id)} 
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  size="lg"
+                >
+                  Accept Job - €{booking.transporter_earnings?.toFixed(2) || "0.00"}
+                </Button>
+              ) : booking.status !== "delivered" ? (
+                getNextAction(booking.status as BookingStatus, booking.id)
+              ) : null}
+            </div>
+          )}
+
+          {/* Delivery timestamp for completed jobs */}
+          {booking.status === "delivered" && booking.updated_at && (
+            <div className="text-sm text-gray-500 mt-3">
+              Delivered on {new Date(booking.updated_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Truck className="w-8 h-8 text-indigo-600" />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transporter Dashboard</h1>
-              <p className="text-gray-600 dark:text-gray-400">{userEmail}</p>
+              <h1 className="text-3xl font-bold">Transporter Dashboard</h1>
+              <p className="text-gray-600 mt-1">Welcome back, {userName}</p>
             </div>
-          </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-
-        {/* Online Status Toggle */}
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-4 h-4 rounded-full ${isOnline ? "bg-green-500" : "bg-gray-400"}`} />
-                <div>
-                  <Label htmlFor="online-status" className="text-lg font-semibold">
-                    {isOnline ? "You're Online" : "You're Offline"}
-                  </Label>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {isOnline ? "Ready to accept jobs" : "Turn on to receive job offers"}
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">
+                {isOnline ? "Online" : "Offline"}
+              </span>
               <Switch
-                id="online-status"
                 checked={isOnline}
-                onCheckedChange={setIsOnline}
+                onCheckedChange={handleOnlineToggle}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+      <div className="container mx-auto px-4 py-8">
+        {/* Interactive Stats Cards (Tab Buttons) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {/* Available Jobs Tab */}
+          <Card 
+            className={`cursor-pointer transition-all hover:shadow-lg ${
+              activeTab === "available" 
+                ? "ring-2 ring-blue-500 shadow-lg" 
+                : "hover:ring-1 hover:ring-gray-300"
+            }`}
+            onClick={() => setActiveTab("available")}
+          >
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                <Euro className="w-4 h-4" />
-                Today's Earnings
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="w-5 h-5 text-blue-600" />
+                  <span className="text-lg">Available Jobs</span>
+                </div>
+                <div className="text-3xl font-bold text-blue-600">
+                  {isLoading ? "..." : availableJobs.length}
+                </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">
-                €{stats.todayEarnings.toFixed(2)}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {stats.completedToday} jobs completed
-              </p>
-            </CardContent>
           </Card>
 
-          <Card>
+          {/* Active Jobs Tab */}
+          <Card 
+            className={`cursor-pointer transition-all hover:shadow-lg ${
+              activeTab === "active" 
+                ? "ring-2 ring-orange-500 shadow-lg" 
+                : "hover:ring-1 hover:ring-gray-300"
+            }`}
+            onClick={() => setActiveTab("active")}
+          >
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                <Truck className="w-4 h-4" />
-                Active Jobs
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-orange-600" />
+                  <span className="text-lg">Active Jobs</span>
+                </div>
+                <div className="text-3xl font-bold text-orange-600">
+                  {isLoading ? "..." : activeJobs.length}
+                </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-blue-600">{stats.activeJobs}</div>
-              <p className="text-xs text-gray-500 mt-1">In progress</p>
-            </CardContent>
           </Card>
 
-          <Card>
+          {/* Completed Jobs Tab */}
+          <Card 
+            className={`cursor-pointer transition-all hover:shadow-lg ${
+              activeTab === "completed" 
+                ? "ring-2 ring-green-500 shadow-lg" 
+                : "hover:ring-1 hover:ring-gray-300"
+            }`}
+            onClick={() => setActiveTab("completed")}
+          >
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                Available Jobs
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  <span className="text-lg">Completed Jobs</span>
+                </div>
+                <div className="text-3xl font-bold text-green-600">
+                  {isLoading ? "..." : completedJobs.length}
+                </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-orange-600">{availableJobs.length}</div>
-              <p className="text-xs text-gray-500 mt-1">Waiting for pickup</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Total Earnings
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">€{stats.totalEarnings.toFixed(2)}</div>
-              <p className="text-xs text-gray-500 mt-1">All time</p>
-            </CardContent>
           </Card>
         </div>
 
-        {/* Available Jobs */}
-        {isOnline && availableJobs.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-                Available Jobs
-              </CardTitle>
-              <CardDescription>Accept jobs to start earning</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {availableJobs.map((job) => (
-                  <Card key={job.id} className="border-l-4 border-l-orange-500">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          {renderItemDetails(job)}
-                        </div>
-                        <div className="text-right ml-4">
-                          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                            €{job.transporter_earnings?.toFixed(2)}
-                          </p>
-                          <p className="text-xs text-gray-500">Your earnings</p>
-                        </div>
-                      </div>
-
-                      <Separator className="my-4" />
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Pick-up</p>
-                            <p className="text-sm font-medium truncate">{job.pickup_address}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Drop-off</p>
-                            <p className="text-sm font-medium truncate">{job.dropoff_address}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Separator className="my-4" />
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {job.scheduled_at && format(new Date(job.scheduled_at), "MMM dd, HH:mm")}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Navigation className="w-4 h-4" />
-                            {job.distance_km?.toFixed(1)} km
-                          </div>
-                        </div>
-                        <Button
-                          onClick={() => handleAcceptJob(job.id)}
-                          className="bg-green-600 hover:bg-green-700"
-                          disabled={acceptingJobId === job.id}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          {acceptingJobId === job.id ? "Accepting..." : "Accept Job"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* My Active Jobs */}
-        <Card>
-          <CardHeader>
-            <CardTitle>My Jobs</CardTitle>
-            <CardDescription>Track and manage your accepted jobs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-8 text-gray-500">Loading jobs...</div>
-            ) : myJobs.length === 0 ? (
-              <div className="text-center py-12">
-                <Truck className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-xl font-semibold mb-2">No active jobs</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  {isOnline 
-                    ? "Available jobs will appear above when customers book" 
-                    : "Turn on 'Online' status to start accepting jobs"}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {myJobs.map((job) => {
-                  const nextStatus = getNextStatus(job.status);
-                  const isActive = job.status !== "delivered" && job.status !== "cancelled";
-                  const isTrackingActive = 
-                    job.status === "en_route_pickup" || 
-                    job.status === "picked_up" || 
-                    job.status === "en_route_dropoff";
-
-                  return (
-                    <Card key={job.id} className="border-l-4 border-l-blue-500">
-                      <CardContent className="pt-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            {renderItemDetails(job)}
-                          </div>
-                          <div className="ml-4">
-                            <Badge variant={STATUS_CONFIG[job.status]?.variant || "default"} className="mb-2">
-                              {STATUS_CONFIG[job.status]?.label || job.status}
-                            </Badge>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                €{job.transporter_earnings?.toFixed(2)}
-                              </p>
-                              <p className="text-xs text-gray-500">Your earnings</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                          <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Pick-up</p>
-                              <p className="text-sm font-medium truncate">{job.pickup_address}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Drop-off</p>
-                              <p className="text-sm font-medium truncate">{job.dropoff_address}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {job.scheduled_at && format(new Date(job.scheduled_at), "MMM dd, HH:mm")}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Navigation className="w-4 h-4" />
-                              {job.distance_km?.toFixed(1)} km
-                            </div>
-                          </div>
-                          {isActive && nextStatus && (
-                            <Button
-                              onClick={() => handleUpdateStatus(job.id, nextStatus)}
-                              size="sm"
-                            >
-                              {nextStatus === "en_route_pickup" && "Start Trip"}
-                              {nextStatus === "picked_up" && "Confirm Pickup"}
-                              {nextStatus === "en_route_dropoff" && "En Route to Dropoff"}
-                              {nextStatus === "delivered" && "Complete Delivery"}
-                            </Button>
-                          )}
-                        </div>
-
-                        {/* Location Tracker for active jobs */}
-                        {(job.status === "accepted" || isTrackingActive) && userId && (
-                          <div className="mt-4 space-y-4">
-                            <LocationTracker
-                              bookingId={job.id}
-                              transporterId={userId}
-                              isActive={isTrackingActive}
-                            />
-                            <TrackingMap booking={job} userRole="transporter" />
-                          </div>
-                        )}
+        {/* Tab Content */}
+        <div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <>
+              {/* Available Jobs Content */}
+              {activeTab === "available" && (
+                <div>
+                  {availableJobs.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-xl font-semibold mb-2">No Available Jobs</h3>
+                        <p className="text-gray-600">
+                          {isOnline 
+                            ? "Check back soon for new delivery requests" 
+                            : "Turn on your online status to receive jobs"}
+                        </p>
                       </CardContent>
                     </Card>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {availableJobs.map((booking) => renderJobCard(booking, true))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Active Jobs Content */}
+              {activeTab === "active" && (
+                <div>
+                  {activeJobs.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <Clock className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-xl font-semibold mb-2">No Active Jobs</h3>
+                        <p className="text-gray-600">
+                          Accept a job from the Available Jobs tab to get started
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {activeJobs.map((booking) => renderJobCard(booking, true))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Completed Jobs Content */}
+              {activeTab === "completed" && (
+                <div>
+                  {completedJobs.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-xl font-semibold mb-2">No Completed Jobs</h3>
+                        <p className="text-gray-600">
+                          Your delivery history will appear here
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {completedJobs.map((booking) => renderJobCard(booking, false))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
