@@ -448,9 +448,12 @@ export default function BookMove() {
                     id="pickup"
                     value={pickupAddress}
                     onChange={(e) => setPickupAddress(e.target.value)}
-                    placeholder="Enter pickup address in Helsinki (e.g., Mannerheimintie 1, Helsinki)"
+                    placeholder="e.g., Mannerheimintie 1 or Keskusta, Helsinki"
                     required
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    💡 Tip: Add "Helsinki" for best results (e.g., "Kamppi, Helsinki")
+                  </p>
                 </div>
 
                 <div>
@@ -459,9 +462,12 @@ export default function BookMove() {
                     id="dropoff"
                     value={dropoffAddress}
                     onChange={(e) => setDropoffAddress(e.target.value)}
-                    placeholder="Enter dropoff address in Helsinki (e.g., Kamppi, Helsinki)"
+                    placeholder="e.g., Kallio, Helsinki or Esplanadi 1"
                     required
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    💡 Tip: Include street name or area name for accurate pricing
+                  </p>
                 </div>
               </div>
 
@@ -592,17 +598,13 @@ export default function BookMove() {
                 {loading ? (
                   <>
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : useAsap ? (
-                  <>
-                    <Navigation className="h-5 w-5 mr-2" />
-                    Request ASAP
+                    Creating Booking...
                   </>
                 ) : (
                   <>
-                    <Calendar className="h-5 w-5 mr-2" />
-                    Schedule Move {estimatedPrice ? `- €${estimatedPrice.toFixed(2)}` : ""}
+                    <Check className="h-5 w-5 mr-2" />
+                    Confirm Booking
+                    {estimatedPrice && ` - €${estimatedPrice.toFixed(2)}`}
                   </>
                 )}
               </Button>

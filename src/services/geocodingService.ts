@@ -19,16 +19,28 @@ export const geocodingService = {
 
     if (!apiKey) {
       console.error("Google Maps API key not configured");
-      return null; // Don't use mock - return null to force error
+      return null;
     }
 
     try {
       console.log("🔍 Geocoding address:", address);
       
+      // Add Helsinki, Finland bias if not already specified
+      let searchAddress = address;
+      if (!address.toLowerCase().includes('helsinki') && 
+          !address.toLowerCase().includes('espoo') && 
+          !address.toLowerCase().includes('vantaa') &&
+          !address.toLowerCase().includes('finland') &&
+          !address.toLowerCase().includes('suomi')) {
+        searchAddress = `${address}, Helsinki, Finland`;
+      }
+      
+      console.log("🔍 Searching for:", searchAddress);
+      
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-          address
-        )}&key=${apiKey}`
+          searchAddress
+        )}&key=${apiKey}&region=fi&language=fi`
       );
 
       const data = await response.json();
@@ -49,20 +61,21 @@ export const geocodingService = {
       }
 
       if (data.status === "ZERO_RESULTS") {
-        console.error("❌ Address not found:", address);
-        return null; // No mock fallback - force user to fix address
+        console.error("❌ Address not found:", searchAddress);
+        console.log("💡 Try adding 'Helsinki' or 'Espoo' to your address");
+        return null;
       }
 
       if (data.status === "REQUEST_DENIED") {
         console.error("❌ Google API error:", data.error_message);
-        return null; // No mock fallback - API configuration issue
+        return null;
       }
 
       console.warn("⚠️ Geocoding failed with status:", data.status);
-      return null; // No mock fallback - let booking fail with clear error
+      return null;
     } catch (error) {
       console.error("❌ Geocoding error:", error);
-      return null; // No mock fallback on network errors
+      return null;
     }
   },
 
