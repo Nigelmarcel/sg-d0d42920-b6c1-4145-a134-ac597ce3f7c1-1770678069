@@ -6,6 +6,7 @@ type BookingInsert = Database["public"]["Tables"]["bookings"]["Insert"];
 type BookingUpdate = Database["public"]["Tables"]["bookings"]["Update"];
 type ItemType = Database["public"]["Enums"]["item_type"];
 type ItemSize = Database["public"]["Enums"]["item_size"];
+type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
 export interface BookingFormData {
   pickupAddress: string;
@@ -19,6 +20,15 @@ export interface BookingFormData {
   itemDescription?: string;
   scheduledFor: string;
   notes?: string;
+}
+
+interface PriceBreakdown {
+  distanceKm: number;
+  basePrice: number;
+  distancePrice: number;
+  totalPrice: number;
+  platformFee: number;
+  transporterEarnings: number;
 }
 
 // Calculate distance between two coordinates (Haversine formula)
@@ -39,18 +49,19 @@ function calculateDistance(
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c;
-  return distance;
+  return distance; // Distance in km
 }
 
 // Calculate price based on distance and item size
-export function calculatePrice(
+export function calculatePriceBreakdown(
   pickupLat: number,
   pickupLng: number,
   dropoffLat: number,
   dropoffLng: number,
   itemSize: string
-): number {
+): PriceBreakdown {
   const distance = calculateDistance(pickupLat, pickupLng, dropoffLat, dropoffLng);
+  const roundedDistance = Math.round(distance * 100) / 100;
   
   // Base price in EUR
   const basePrice = 25;
@@ -65,12 +76,36 @@ export function calculatePrice(
   const sizeMultiplier = sizeMultipliers[itemSize] || 1;
   
   // Distance pricing: €2 per km
-  const distancePrice = distance * 2;
+  const distancePrice = roundedDistance * 2;
   
-  // Total price
-  const totalPrice = (basePrice + distancePrice) * sizeMultiplier;
+  // Total price calculation
+  const subTotal = (basePrice + distancePrice) * sizeMultiplier;
+  const totalPrice = Math.round(subTotal * 100) / 100;
   
-  return Math.round(totalPrice * 100) / 100; // Round to 2 decimals
+  // Fee calculation (20% platform fee)
+  const platformFee = Math.round((totalPrice * 0.2) * 100) / 100;
+  const transporterEarnings = Math.round((totalPrice - platformFee) * 100) / 100;
+  
+  return {
+    distanceKm: roundedDistance,
+    basePrice,
+    distancePrice: Math.round(distancePrice * 100) / 100,
+    totalPrice,
+    platformFee,
+    transporterEarnings,
+  };
+}
+
+// For frontend display compatibility
+export function calculatePrice(
+  pickupLat: number,
+  pickupLng: number,
+  dropoffLat: number,
+  dropoffLng: number,
+  itemSize: string
+): number {
+  const breakdown = calculatePriceBreakdown(pickupLat, pickupLng, dropoffLat, dropoffLng, itemSize);
+  return breakdown.totalPrice;
 }
 
 export const bookingService = {
@@ -84,7 +119,7 @@ export const bookingService = {
         return null;
       }
 
-      const estimatedPrice = calculatePrice(
+      const priceBreakdown = calculatePriceBreakdown(
         formData.pickupLat,
         formData.pickupLng,
         formData.dropoffLat,
@@ -102,10 +137,17 @@ export const bookingService = {
         dropoff_lng: formData.dropoffLng,
         item_type: formData.itemType as ItemType,
         item_size: formData.itemSize as ItemSize,
-        item_description: formData.itemDescription,
-        scheduled_for: formData.scheduledFor,
-        notes: formData.notes,
-        estimated_price: estimatedPrice,
+        special_instructions: formData.itemDescription, // Mapped from itemDescription
+        scheduled_at: formData.scheduledFor, // Mapped from scheduledFor
+        
+        // Price fields
+        distance_km: priceBreakdown.distanceKm,
+        base_price: priceBreakdown.basePrice,
+        distance_price: priceBreakdown.distancePrice,
+        total_price: priceBreakdown.totalPrice,
+        platform_fee: priceBreakdown.platformFee,
+        transporter_earnings: priceBreakdown.transporterEarnings,
+        
         status: "pending",
       };
 
@@ -239,7 +281,7 @@ export const bookingService = {
   // Update booking status
   async updateBookingStatus(
     bookingId: string,
-    status: Database["public"]["Enums"]["booking_status"]
+    status: BookingStatus
   ): Promise<boolean> {
     try {
       const updates: BookingUpdate = { status };
@@ -271,7 +313,10 @@ export const bookingService = {
     try {
       const { error } = await supabase
         .from("bookings")
-        .update({ status: "cancelled" })
+        .update({ 
+          status: "cancelled",
+          cancelled_at: new Date().toISOString()
+        })
         .eq("id", bookingId);
 
       if (error) {

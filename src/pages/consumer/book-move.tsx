@@ -285,10 +285,10 @@ function BookMoveContent() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="itemDescription">Item Description (Optional)</Label>
+                <Label htmlFor="itemDescription">Special Instructions (Optional)</Label>
                 <Textarea
                   id="itemDescription"
-                  placeholder="e.g., IKEA sofa, beige color, 2-seater"
+                  placeholder="e.g., Door code 1234, 3rd floor no elevator"
                   value={formData.itemDescription}
                   onChange={(e) => handleInputChange("itemDescription", e.target.value)}
                   rows={3}
@@ -304,7 +304,7 @@ function BookMoveContent() {
                     €{estimatedPrice.toFixed(2)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Final price may vary based on actual distance
+                    Includes base fare + distance
                   </p>
                 </div>
               )}
