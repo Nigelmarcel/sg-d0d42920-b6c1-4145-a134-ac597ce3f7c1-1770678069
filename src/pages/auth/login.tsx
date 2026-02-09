@@ -42,30 +42,45 @@ export default function LoginPage() {
         password: formData.password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        if (authError.message.includes("Email not confirmed")) {
+          setError("Please confirm your email address before logging in. Check your inbox for the confirmation link.");
+        } else if (authError.message.includes("Invalid login credentials")) {
+          setError("Invalid email or password. Please check your credentials and try again.");
+        } else {
+          setError(authError.message);
+        }
+        return;
+      }
 
       if (authData.user) {
+        // Fetch user profile to get role
         const profile = await profileService.getProfile(authData.user.id);
 
-        if (profile) {
-          switch (profile.role) {
-            case "consumer":
-              router.push("/consumer/dashboard");
-              break;
-            case "transporter":
-              router.push("/transporter/dashboard");
-              break;
-            case "admin":
-              router.push("/admin/dashboard");
-              break;
-            default:
-              router.push("/");
-          }
+        if (!profile) {
+          setError("Profile not found. Please contact support.");
+          return;
+        }
+
+        // Redirect based on role
+        switch (profile.role) {
+          case "consumer":
+            router.push("/consumer/dashboard");
+            break;
+          case "transporter":
+            router.push("/transporter/dashboard");
+            break;
+          case "admin":
+            router.push("/admin/dashboard");
+            break;
+          default:
+            router.push("/");
         }
       }
     } catch (err: unknown) {
       const error = err as Error;
-      setError(error.message || "Invalid email or password");
+      console.error("Login error:", error);
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -75,9 +90,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl">Welcome Back to VANGO</CardTitle>
           <CardDescription>
-            Log in to your MoveHelsinki account
+            Log in to your account
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
@@ -98,6 +113,7 @@ export default function LoginPage() {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="your@email.com"
+                autoComplete="email"
               />
             </div>
 
@@ -111,6 +127,7 @@ export default function LoginPage() {
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="Enter your password"
+                autoComplete="current-password"
               />
             </div>
           </CardContent>

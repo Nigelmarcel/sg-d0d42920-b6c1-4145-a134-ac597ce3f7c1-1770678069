@@ -8,12 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Truck, User } from "lucide-react";
+import { Truck, User, Mail } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"consumer" | "transporter" | null>(null);
   const [formData, setFormData] = useState({
     email: "",
@@ -56,14 +57,24 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
+      // Sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            phone: formData.phone || null,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/confirm-email`
+        }
       });
 
       if (authError) throw authError;
 
       if (authData.user) {
+        // Create profile with role information
+        // The trigger will handle basic profile creation, but we need to update the role
         await profileService.createProfile({
           id: authData.user.id,
           role: selectedRole,
@@ -72,26 +83,86 @@ export default function SignupPage() {
           language: "en"
         });
 
-        if (selectedRole === "consumer") {
-          router.push("/consumer/dashboard");
-        } else if (selectedRole === "transporter") {
-          router.push("/transporter/apply");
+        // Check if email confirmation is required
+        if (authData.user.confirmed_at) {
+          // Email already confirmed (auto-confirm is enabled)
+          if (selectedRole === "consumer") {
+            router.push("/consumer/dashboard");
+          } else if (selectedRole === "transporter") {
+            router.push("/transporter/dashboard");
+          }
+        } else {
+          // Email confirmation required
+          setEmailSent(true);
         }
       }
     } catch (err: unknown) {
       const error = err as Error;
+      console.error("Signup error:", error);
       setError(error.message || "An error occurred during signup");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Show email confirmation message
+  if (emailSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <Mail className="w-16 h-16 mx-auto text-blue-600 mb-4" />
+            <CardTitle>Check Your Email</CardTitle>
+            <CardDescription>
+              We&apos;ve sent a confirmation link to <strong>{formData.email}</strong>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertDescription>
+                Please click the confirmation link in your email to activate your account.
+                The link will expire in 24 hours.
+              </AlertDescription>
+            </Alert>
+            <div className="text-sm text-gray-600 space-y-2">
+              <p>Didn&apos;t receive the email?</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Check your spam/junk folder</li>
+                <li>Make sure you entered the correct email address</li>
+                <li>Wait a few minutes and check again</li>
+              </ul>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-2">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => {
+                setEmailSent(false);
+                setSelectedRole(null);
+                setFormData({ email: "", password: "", fullName: "", phone: "" });
+              }}
+            >
+              Try Different Email
+            </Button>
+            <Link href="/auth/login" className="w-full">
+              <Button variant="ghost" className="w-full">
+                Already confirmed? Log in
+              </Button>
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show role selection
   if (!selectedRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-4xl w-full">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to MoveHelsinki</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome to VANGO</h1>
             <p className="text-gray-600">Choose how you want to get started</p>
           </div>
 
@@ -160,6 +231,7 @@ export default function SignupPage() {
     );
   }
 
+  // Show signup form
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="max-w-md w-full">
