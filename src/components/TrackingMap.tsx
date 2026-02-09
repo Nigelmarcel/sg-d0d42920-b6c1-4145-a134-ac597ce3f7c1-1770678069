@@ -34,15 +34,15 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
   const [estimatedTime, setEstimatedTime] = useState<string>("");
   const [distance, setDistance] = useState<string>("");
 
-  // Parse addresses to coordinates (you'll need to use Geocoding API for real addresses)
+  // Use actual booking coordinates
   const pickupLocation = {
-    lat: 60.1699 + Math.random() * 0.05, // Mock coordinates
-    lng: 24.9384 + Math.random() * 0.05,
+    lat: booking.pickup_lat,
+    lng: booking.pickup_lng,
   };
 
   const dropoffLocation = {
-    lat: 60.1699 + Math.random() * 0.05, // Mock coordinates
-    lng: 24.9384 + Math.random() * 0.05,
+    lat: booking.dropoff_lat,
+    lng: booking.dropoff_lng,
   };
 
   // Fetch initial transporter location

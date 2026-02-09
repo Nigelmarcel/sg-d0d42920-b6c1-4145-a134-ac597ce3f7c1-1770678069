@@ -41,6 +41,7 @@ function BookMoveContent() {
   const [step, setStep] = useState(1);
   const [date, setDate] = useState<Date>();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isAsap, setIsAsap] = useState(false); // Track if user wants ASAP booking
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -89,8 +90,18 @@ function BookMoveContent() {
   const handleDateSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
       setDate(selectedDate);
+      setIsAsap(false); // Clear ASAP if date selected
       handleInputChange("scheduledFor", selectedDate.toISOString());
     }
+  };
+
+  const handleAsapSelect = () => {
+    setIsAsap(true);
+    setDate(undefined); // Clear date if ASAP selected
+    // Set scheduledFor to now + 30 minutes (reasonable prep time)
+    const asapTime = new Date();
+    asapTime.setMinutes(asapTime.getMinutes() + 30);
+    handleInputChange("scheduledFor", asapTime.toISOString());
   };
 
   const canProceedToStep2 = () => {
@@ -102,7 +113,7 @@ function BookMoveContent() {
   };
 
   const canSubmit = () => {
-    return formData.scheduledFor && canProceedToStep3();
+    return (isAsap || formData.scheduledFor) && canProceedToStep3();
   };
 
   const handleSubmit = async () => {
@@ -343,35 +354,55 @@ function BookMoveContent() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label>Select Date & Time</Label>
-                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={(newDate) => {
-                        if (newDate) {
-                          handleDateSelect(newDate);
-                          setIsCalendarOpen(false);
-                        }
-                      }}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Label>When do you need this move?</Label>
+                
+                {/* ASAP Option */}
+                <Button
+                  type="button"
+                  variant={isAsap ? "default" : "outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal mb-2",
+                    isAsap && "bg-blue-600 text-white"
+                  )}
+                  onClick={handleAsapSelect}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  🚀 ASAP (Ready in ~30 minutes)
+                </Button>
+
+                {/* Schedule for Later */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-gray-500">Or schedule for later:</Label>
+                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !date && !isAsap && "text-muted-foreground",
+                          date && "border-blue-500"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : "Pick a specific date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(newDate) => {
+                          if (newDate) {
+                            handleDateSelect(newDate);
+                            setIsCalendarOpen(false);
+                          }
+                        }}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -406,12 +437,12 @@ function BookMoveContent() {
                       {ITEM_TYPES.find((t) => t.value === formData.itemType)?.label} ({ITEM_SIZES.find((s) => s.value === formData.itemSize)?.label})
                     </span>
                   </div>
-                  {date && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Scheduled:</span>
-                      <span className="font-medium">{format(date, "PPP")}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Scheduled:</span>
+                    <span className="font-medium">
+                      {isAsap ? "🚀 ASAP (Ready in ~30 min)" : date ? format(date, "PPP") : "Not set"}
+                    </span>
+                  </div>
                   {estimatedPrice && (
                     <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                       <span className="font-semibold">Estimated Price:</span>

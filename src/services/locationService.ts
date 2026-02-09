@@ -73,7 +73,7 @@ export const locationService = {
         .eq("booking_id", bookingId)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle(); // ← Changed from .single() to handle 0 or 1 results
 
       if (error) {
         console.error("Error fetching latest location:", error);
