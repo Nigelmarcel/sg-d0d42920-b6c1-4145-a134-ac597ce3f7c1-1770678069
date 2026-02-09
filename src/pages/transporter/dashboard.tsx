@@ -20,12 +20,17 @@ import {
   Euro,
   Navigation,
   Home,
-  LogOut
+  LogOut,
+  TrendingUp,
+  Briefcase,
+  Star
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { bookingService } from "@/services/bookingService";
 import type { Database } from "@/integrations/supabase/types";
 import { format } from "date-fns";
+import { LocationTracker } from "@/components/LocationTracker";
+import { TrackingMap } from "@/components/TrackingMap";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -524,6 +529,29 @@ function TransporterDashboardContent() {
                             )}
                           </div>
                         </div>
+
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {job.scheduled_at && new Date(job.scheduled_at).toLocaleDateString()}
+                        </p>
+
+                        {/* Location Tracker for active jobs */}
+                        {(job.status === "accepted" || 
+                          job.status === "en_route_pickup" || 
+                          job.status === "picked_up" || 
+                          job.status === "en_route_dropoff") && userId && (
+                          <div className="mt-4 space-y-4">
+                            <LocationTracker
+                              bookingId={job.id}
+                              transporterId={userId}
+                              isActive={
+                                job.status === "en_route_pickup" || 
+                                job.status === "picked_up" || 
+                                job.status === "en_route_dropoff"
+                              }
+                            />
+                            <TrackingMap booking={job} userRole="transporter" />
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   );

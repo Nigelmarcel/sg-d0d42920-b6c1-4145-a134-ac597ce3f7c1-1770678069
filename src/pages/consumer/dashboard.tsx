@@ -17,12 +17,14 @@ import {
   Truck,
   AlertCircle,
   Home,
-  LogOut
+  LogOut,
+  DollarSign
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { bookingService } from "@/services/bookingService";
 import type { Database } from "@/integrations/supabase/types";
 import { format } from "date-fns";
+import { TrackingMap } from "@/components/TrackingMap";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -329,6 +331,20 @@ function ConsumerDashboardContent() {
                           )}
                         </div>
                       </div>
+
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {booking.scheduled_at && new Date(booking.scheduled_at).toLocaleDateString()}
+                      </p>
+
+                      {/* Show tracking map for active bookings */}
+                      {(booking.status === "accepted" || 
+                        booking.status === "en_route_pickup" || 
+                        booking.status === "picked_up" || 
+                        booking.status === "en_route_dropoff") && (
+                        <div className="mt-4">
+                          <TrackingMap booking={booking} userRole="consumer" />
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
