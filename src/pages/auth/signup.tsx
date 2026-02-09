@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
-import { profileService } from "@/services/profileService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,103 +9,53 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Truck, User, Mail } from "lucide-react";
 
-export default function SignupPage() {
+export default function SignUp() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"consumer" | "transporter" | "admin" | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [emailSent, setEmailSent] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"consumer" | "transporter" | null>(null);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    fullName: "",
-    phone: ""
-  });
+  const [success, setSuccess] = useState(false);
 
-  const handleRoleSelection = (role: "consumer" | "transporter") => {
-    setSelectedRole(role);
-    setError("");
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!role) {
+      setError("Please select a role first");
+      return;
+    }
+    
     setError("");
-
-    if (!selectedRole) {
-      setError("Please select a role");
-      return;
-    }
-
-    if (!formData.email || !formData.password || !formData.fullName) {
-      setError("Please fill in all required fields");
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      // Sign up the user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
+      // Sign up the user - Supabase will send confirmation email
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
           data: {
-            full_name: formData.fullName,
-            phone: formData.phone || null,
+            role: role, // Store role in user metadata
           },
-          emailRedirectTo: `${window.location.origin}/auth/confirm-email`
-        }
+        },
       });
 
-      if (authError) throw authError;
+      if (signUpError) throw signUpError;
 
-      if (authData.user) {
-        // Create profile with role information
-        // The trigger will handle basic profile creation, but we need to update the role
-        await profileService.createProfile({
-          id: authData.user.id,
-          role: selectedRole,
-          full_name: formData.fullName,
-          phone: formData.phone || null,
-          language: "en"
-        });
-
-        // Check if email confirmation is required
-        if (authData.user.confirmed_at) {
-          // Email already confirmed (auto-confirm is enabled)
-          if (selectedRole === "consumer") {
-            router.push("/consumer/dashboard");
-          } else if (selectedRole === "transporter") {
-            router.push("/transporter/dashboard");
-          }
-        } else {
-          // Email confirmation required
-          setEmailSent(true);
-        }
+      if (data.user) {
+        // Show success message - profile will be created by trigger after email confirmation
+        setSuccess(true);
       }
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error("Signup error:", error);
-      setError(error.message || "An error occurred during signup");
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError(err instanceof Error ? err.message : "Failed to sign up");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   // Show email confirmation message
-  if (emailSent) {
+  if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <Card className="max-w-md w-full">
@@ -114,7 +63,7 @@ export default function SignupPage() {
             <Mail className="w-16 h-16 mx-auto text-blue-600 mb-4" />
             <CardTitle>Check Your Email</CardTitle>
             <CardDescription>
-              We&apos;ve sent a confirmation link to <strong>{formData.email}</strong>
+              We&apos;ve sent a confirmation link to <strong>{email}</strong>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -138,9 +87,10 @@ export default function SignupPage() {
               variant="outline" 
               className="w-full"
               onClick={() => {
-                setEmailSent(false);
-                setSelectedRole(null);
-                setFormData({ email: "", password: "", fullName: "", phone: "" });
+                setSuccess(false);
+                setRole(null);
+                setEmail("");
+                setPassword("");
               }}
             >
               Try Different Email
@@ -156,8 +106,8 @@ export default function SignupPage() {
     );
   }
 
-  // Show role selection
-  if (!selectedRole) {
+  // Show role selection if no role selected
+  if (!role) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-4xl w-full">
@@ -169,7 +119,7 @@ export default function SignupPage() {
           <div className="grid md:grid-cols-2 gap-6">
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-blue-500"
-              onClick={() => handleRoleSelection("consumer")}
+              onClick={() => setRole("consumer")}
             >
               <CardHeader className="text-center">
                 <div className="mx-auto mb-4 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
@@ -195,7 +145,7 @@ export default function SignupPage() {
 
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-green-500"
-              onClick={() => handleRoleSelection("transporter")}
+              onClick={() => setRole("transporter")}
             >
               <CardHeader className="text-center">
                 <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
@@ -237,13 +187,13 @@ export default function SignupPage() {
       <Card className="max-w-md w-full">
         <CardHeader>
           <CardTitle>
-            {selectedRole === "consumer" ? "Consumer" : "Transporter"} Sign Up
+            {role === "consumer" ? "Consumer" : "Transporter"} Sign Up
           </CardTitle>
           <CardDescription>
             Create your account to get started
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSignup}>
+        <form onSubmit={handleSignUp}>
           <CardContent className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -252,40 +202,14 @@ export default function SignupPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                name="fullName"
-                type="text"
-                required
-                value={formData.fullName}
-                onChange={handleInputChange}
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
-                name="email"
                 type="email"
                 required
-                value={formData.email}
-                onChange={handleInputChange}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number (Optional)</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="+358..."
               />
             </div>
 
@@ -293,24 +217,23 @@ export default function SignupPage() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
-                name="password"
                 type="password"
                 required
-                value={formData.password}
-                onChange={handleInputChange}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Creating Account..." : "Create Account"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating Account..." : "Create Account"}
             </Button>
             <Button 
               type="button" 
               variant="ghost" 
               className="w-full"
-              onClick={() => setSelectedRole(null)}
+              onClick={() => setRole(null)}
             >
               Back to Role Selection
             </Button>
