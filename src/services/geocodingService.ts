@@ -25,26 +25,28 @@ export const geocodingService = {
     try {
       console.log("🔍 Geocoding address:", address);
       
-      // Add Helsinki, Finland bias if not already specified
-      let searchAddress = address;
-      if (!address.toLowerCase().includes('helsinki') && 
-          !address.toLowerCase().includes('espoo') && 
-          !address.toLowerCase().includes('vantaa') &&
-          !address.toLowerCase().includes('finland') &&
-          !address.toLowerCase().includes('suomi')) {
-        searchAddress = `${address}, Helsinki, Finland`;
+      // Build the search address
+      let searchAddress = address.trim();
+      
+      // Only add Helsinki if address doesn't already have a city
+      const hasCityName = /helsinki|espoo|vantaa|finland|suomi/i.test(searchAddress.toLowerCase());
+      if (!hasCityName && searchAddress.length > 0) {
+        searchAddress = `${searchAddress}, Helsinki, Finland`;
       }
       
       console.log("🔍 Searching for:", searchAddress);
+      console.log("🔑 Using API key:", apiKey.substring(0, 10) + "...");
       
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-          searchAddress
-        )}&key=${apiKey}&region=fi&language=fi`
-      );
-
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+        searchAddress
+      )}&key=${apiKey}&region=fi&language=fi`;
+      
+      console.log("🌐 Full URL:", url.replace(apiKey, "API_KEY_HIDDEN"));
+      
+      const response = await fetch(url);
       const data = await response.json();
-      console.log("📍 Geocoding response status:", data.status);
+      
+      console.log("📍 Raw API response:", JSON.stringify(data, null, 2));
 
       if (data.status === "OK" && data.results && data.results.length > 0) {
         const location = data.results[0].geometry.location;
@@ -62,16 +64,23 @@ export const geocodingService = {
 
       if (data.status === "ZERO_RESULTS") {
         console.error("❌ Address not found:", searchAddress);
-        console.log("💡 Try adding 'Helsinki' or 'Espoo' to your address");
+        console.log("💡 Suggestion: Try a more specific address with street name");
         return null;
       }
 
       if (data.status === "REQUEST_DENIED") {
         console.error("❌ Google API error:", data.error_message);
+        console.error("❌ This usually means the API key is invalid or restricted");
+        return null;
+      }
+
+      if (data.status === "OVER_QUERY_LIMIT") {
+        console.error("❌ API quota exceeded");
         return null;
       }
 
       console.warn("⚠️ Geocoding failed with status:", data.status);
+      console.warn("⚠️ Full response:", data);
       return null;
     } catch (error) {
       console.error("❌ Geocoding error:", error);

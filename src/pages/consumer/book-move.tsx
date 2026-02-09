@@ -579,35 +579,37 @@ export default function BookMove() {
             <div className="flex gap-4">
               <Button
                 type="button"
-                size="lg"
                 variant="outline"
-                onClick={handleDiscardForm}
-                disabled={loading}
-                className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10"
+                onClick={() => router.push("/consumer/dashboard")}
+                className="flex-1"
               >
-                <X className="h-5 w-5 mr-2" />
-                Discard
+                Peruuta
               </Button>
               
               <Button
                 type="submit"
-                size="lg"
                 disabled={loading || !pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))}
-                className="flex-1 bg-gradient-to-r from-navy-900 to-gold hover:from-navy-950 hover:to-gold/90 text-white font-semibold text-lg py-6"
+                className="flex-1 bg-gradient-to-r from-navy-600 to-gold-600 hover:from-navy-700 hover:to-gold-700 text-white font-semibold py-6 text-lg"
               >
                 {loading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Creating Booking...
-                  </>
+                  "Ladataan..."
                 ) : (
                   <>
-                    <Check className="h-5 w-5 mr-2" />
-                    Confirm Booking
+                    ✓ Vahvista Tilaus
                     {estimatedPrice && ` - €${estimatedPrice.toFixed(2)}`}
                   </>
                 )}
               </Button>
+            </div>
+
+            {/* Debugging info - Remove in production */}
+            <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm">
+              <p className="font-semibold mb-2">Debug Info (poista tuotannossa):</p>
+              <p>Pickup: {pickupAddress || "tyhjä"}</p>
+              <p>Dropoff: {dropoffAddress || "tyhjä"}</p>
+              <p>Estimated Price: {estimatedPrice ? `€${estimatedPrice.toFixed(2)}` : "ei laskettu"}</p>
+              <p>Distance: {distance ? `${distance} km` : "ei laskettu"}</p>
+              <p>Button Status: {(!pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))) ? "DISABLED" : "ENABLED"}</p>
             </div>
           </form>
         </div>
