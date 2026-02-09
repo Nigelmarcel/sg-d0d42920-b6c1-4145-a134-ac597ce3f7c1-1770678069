@@ -111,6 +111,21 @@ class NotificationService {
   }
 
   /**
+   * Send push notification to a specific user via API
+   */
+  async sendPushNotification(userId: string, payload: NotificationPayload) {
+    try {
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, payload }),
+      });
+    } catch (error) {
+      console.error("Error sending push notification:", error);
+    }
+  }
+
+  /**
    * Save push subscription to database
    */
   private async saveSubscription(userId: string, subscription: PushSubscriptionJSON) {

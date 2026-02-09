@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { geocodingService } from "./geocodingService";
+import { notificationService, notificationHandlers } from "./notificationService";
 
 export type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
   transporter_name?: string;
@@ -434,5 +435,56 @@ export const bookingService = {
       console.error("Error deleting booking:", error);
       return false;
     }
+  },
+
+  async updateStatus(bookingId: string, status: string) {
+    const { data, error } = await supabase
+      .from("bookings")
+      .update({ status })
+      .eq("id", bookingId)
+      .select(`
+        *,
+        transporter:transporter_id(full_name)
+      `)
+      .single();
+
+    if (error) {
+      console.error("Error updating booking status:", error);
+      return null;
+    }
+    
+    // Trigger Notifications based on status
+    if (data && data.consumer_id) {
+      const transporterName = data.transporter?.full_name || "Transporter";
+      
+      let payload = null;
+      
+      switch (status) {
+        case "accepted":
+          payload = notificationHandlers.bookingAccepted(transporterName);
+          break;
+        case "en_route_pickup":
+          payload = notificationHandlers.enRouteToPickup(transporterName, "Calculating...");
+          break;
+        case "picked_up":
+          payload = notificationHandlers.itemPickedUp(transporterName);
+          break;
+        case "en_route_dropoff":
+          payload = notificationHandlers.enRouteToDropoff(transporterName, "Calculating...");
+          break;
+        case "delivered":
+          payload = notificationHandlers.itemDelivered();
+          break;
+        case "cancelled":
+           payload = notificationHandlers.bookingCancelled("Your booking has been cancelled");
+           break;
+      }
+      
+      if (payload) {
+        await notificationService.sendPushNotification(data.consumer_id, payload);
+      }
+    }
+
+    return data;
   },
 };
