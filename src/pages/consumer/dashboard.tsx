@@ -248,21 +248,38 @@ export default function ConsumerDashboard() {
     if (!confirmed) return;
 
     try {
-      const success = await bookingService.updateBookingStatus(bookingId, "cancelled");
+      const success = await bookingService.cancelBooking(bookingId);
       if (success) {
         toast({
           title: "🚫 Booking Cancelled",
-          description: "Your booking has been cancelled",
+          description: "Your booking has been cancelled successfully",
         });
-        // Refresh bookings
-        const bookings = await bookingService.getConsumerBookings(userId);
-        setAllBookings(bookings);
+        
+        // Refresh bookings list
+        if (profile?.id) {
+          const bookings = await bookingService.getConsumerBookings(profile.id);
+          setAllBookings(bookings);
+          
+          // Recalculate stats
+          const completed = bookings.filter(b => b.status === "delivered");
+          const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
+          const pending = bookings.filter(b => b.status === "pending");
+
+          setCompletedCount(completed.length);
+          setActiveCount(active.length);
+          setPendingCount(pending.length);
+
+          const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
+          setTotalSpent(spent);
+        }
+      } else {
+        throw new Error("Failed to cancel booking");
       }
     } catch (error) {
       console.error("Error cancelling booking:", error);
       toast({
         title: "Error",
-        description: "Failed to cancel booking",
+        description: error instanceof Error ? error.message : "Failed to cancel booking",
         variant: "destructive",
       });
     }
