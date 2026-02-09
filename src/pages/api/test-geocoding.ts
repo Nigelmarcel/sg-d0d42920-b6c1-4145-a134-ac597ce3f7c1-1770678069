@@ -53,7 +53,7 @@ export default async function handler(
             lat: coordinates.lat,
             lng: coordinates.lng,
           },
-          formattedAddress: coordinates.formattedAddress || address,
+          formatted_address: coordinates.formattedAddress || address,
           isMock,
         });
 

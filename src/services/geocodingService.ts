@@ -1,109 +1,126 @@
-// Google Geocoding API service for address to coordinates conversion
+import { supabase } from "@/integrations/supabase/client";
 
-interface GeocodingResult {
+// Mock coordinates for Helsinki center (fallback only)
+const HELSINKI_CENTER = {
+  lat: 60.1699,
+  lng: 24.9384,
+};
+
+export interface Coordinates {
   lat: number;
   lng: number;
-  formattedAddress: string;
+  formatted_address?: string;
 }
 
 export const geocodingService = {
-  /**
-   * Convert address string to GPS coordinates using Google Geocoding API
-   */
-  async geocodeAddress(address: string): Promise<GeocodingResult | null> {
+  // Geocode an address to coordinates using Google Maps Geocoding API
+  async geocodeAddress(address: string): Promise<Coordinates | null> {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    
-    // Fallback for development/testing without API key
+
     if (!apiKey) {
-      console.warn("Google Maps API key not found. Using mock coordinates for testing.");
-      // Generate deterministic mock coordinates based on address string length
-      const mockLat = 60.1699 + (address.length % 10) * 0.01;
-      const mockLng = 24.9384 + (address.length % 10) * 0.01;
-      
-      return {
-        lat: mockLat,
-        lng: mockLng,
-        formattedAddress: address, // Return original address as formatted
-      };
+      console.error("Google Maps API key not configured");
+      return null; // Don't use mock - return null to force error
     }
 
     try {
-      const encodedAddress = encodeURIComponent(address);
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
+      console.log("🔍 Geocoding address:", address);
       
-      const response = await fetch(url);
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+          address
+        )}&key=${apiKey}`
+      );
+
       const data = await response.json();
+      console.log("📍 Geocoding response status:", data.status);
 
       if (data.status === "OK" && data.results && data.results.length > 0) {
-        const result = data.results[0];
-        return {
-          lat: result.geometry.location.lat,
-          lng: result.geometry.location.lng,
-          formattedAddress: result.formatted_address,
+        const location = data.results[0].geometry.location;
+        const formattedAddress = data.results[0].formatted_address;
+        
+        const coords = {
+          lat: location.lat,
+          lng: location.lng,
+          formatted_address: formattedAddress,
         };
-      } else {
-        console.error("Geocoding failed:", data.status, data.error_message);
-        return null;
+        
+        console.log("✅ Real coordinates:", coords);
+        return coords;
       }
+
+      if (data.status === "ZERO_RESULTS") {
+        console.error("❌ Address not found:", address);
+        return null; // No mock fallback - force user to fix address
+      }
+
+      if (data.status === "REQUEST_DENIED") {
+        console.error("❌ Google API error:", data.error_message);
+        return null; // No mock fallback - API configuration issue
+      }
+
+      console.warn("⚠️ Geocoding failed with status:", data.status);
+      return null; // No mock fallback - let booking fail with clear error
     } catch (error) {
-      console.error("Error geocoding address:", error);
-      return null;
+      console.error("❌ Geocoding error:", error);
+      return null; // No mock fallback on network errors
     }
   },
 
-  /**
-   * Calculate distance between two GPS coordinates in kilometers
-   * Uses Haversine formula for great circle distance
-   */
+  // Calculate distance between two coordinates using Haversine formula
   calculateDistance(
     lat1: number,
     lng1: number,
     lat2: number,
     lng2: number
   ): number {
-    const R = 6371; // Earth's radius in kilometers
-    const dLat = this.toRadians(lat2 - lat1);
-    const dLng = this.toRadians(lng2 - lng1);
+    const R = 6371; // Radius of Earth in kilometers
+    const dLat = this.toRad(lat2 - lat1);
+    const dLng = this.toRad(lng2 - lng1);
 
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRadians(lat1)) *
-        Math.cos(this.toRadians(lat2)) *
+      Math.cos(this.toRad(lat1)) *
+        Math.cos(this.toRad(lat2)) *
         Math.sin(dLng / 2) *
         Math.sin(dLng / 2);
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
 
-    return Math.round(distance * 10) / 10; // Round to 1 decimal place
+    return Math.round(distance * 100) / 100; // Round to 2 decimal places
   },
 
-  /**
-   * Convert degrees to radians
-   */
-  toRadians(degrees: number): number {
+  toRad(degrees: number): number {
     return degrees * (Math.PI / 180);
   },
 
-  /**
-   * Get distance between two addresses using geocoding
-   */
-  async getDistanceBetweenAddresses(
-    pickupAddress: string,
-    dropoffAddress: string
-  ): Promise<number | null> {
-    const pickupCoords = await this.geocodeAddress(pickupAddress);
-    const dropoffCoords = await this.geocodeAddress(dropoffAddress);
-
-    if (!pickupCoords || !dropoffCoords) {
-      return null;
+  // Validate that coordinates are not default/mock values
+  validateCoordinates(coords: Coordinates): boolean {
+    // Check if coordinates are the default Helsinki center (mock data)
+    const isMock = 
+      coords.lat === HELSINKI_CENTER.lat && 
+      coords.lng === HELSINKI_CENTER.lng;
+    
+    if (isMock) {
+      console.error("❌ Coordinates validation failed: Using mock/default values");
+      return false;
     }
 
-    return this.calculateDistance(
-      pickupCoords.lat,
-      pickupCoords.lng,
-      dropoffCoords.lat,
-      dropoffCoords.lng
-    );
+    // Check if coordinates are valid numbers
+    if (!coords.lat || !coords.lng || isNaN(coords.lat) || isNaN(coords.lng)) {
+      console.error("❌ Coordinates validation failed: Invalid values");
+      return false;
+    }
+
+    // Check if coordinates are within Finland bounds (rough check)
+    const isInFinland = 
+      coords.lat >= 59.0 && coords.lat <= 70.5 && 
+      coords.lng >= 19.0 && coords.lng <= 32.0;
+    
+    if (!isInFinland) {
+      console.warn("⚠️ Coordinates appear to be outside Finland:", coords);
+    }
+
+    return true;
   },
 };

@@ -117,19 +117,40 @@ export const bookingService = {
   // Create a new booking
   async createBooking(userId: string, formData: BookingFormData) {
     try {
-      // Geocode pickup address
+      console.log("🚀 Creating booking with addresses:", {
+        pickup: formData.pickupAddress,
+        dropoff: formData.dropoffAddress,
+      });
+
+      // Geocode pickup address with validation
+      console.log("📍 Geocoding pickup address...");
       const pickupCoords = await geocodingService.geocodeAddress(formData.pickupAddress);
+      
       if (!pickupCoords) {
-        throw new Error("Could not find pickup address. Please check the address and try again.");
+        throw new Error("Could not find pickup address. Please enter a valid address in Helsinki area.");
       }
 
-      // Geocode dropoff address
+      if (!geocodingService.validateCoordinates(pickupCoords)) {
+        throw new Error("Invalid pickup coordinates. Please enter a specific street address.");
+      }
+
+      console.log("✅ Pickup coordinates validated:", pickupCoords);
+
+      // Geocode dropoff address with validation
+      console.log("📍 Geocoding dropoff address...");
       const dropoffCoords = await geocodingService.geocodeAddress(formData.dropoffAddress);
+      
       if (!dropoffCoords) {
-        throw new Error("Could not find dropoff address. Please check the address and try again.");
+        throw new Error("Could not find dropoff address. Please enter a valid address in Helsinki area.");
       }
 
-      // Calculate distance
+      if (!geocodingService.validateCoordinates(dropoffCoords)) {
+        throw new Error("Invalid dropoff coordinates. Please enter a specific street address.");
+      }
+
+      console.log("✅ Dropoff coordinates validated:", dropoffCoords);
+
+      // Calculate distance with real coordinates
       const distance = geocodingService.calculateDistance(
         pickupCoords.lat,
         pickupCoords.lng,
@@ -137,7 +158,18 @@ export const bookingService = {
         dropoffCoords.lng
       );
 
-      // Calculate pricing with actual coordinates
+      console.log("📏 Distance calculated:", distance, "km");
+
+      // Validate distance is reasonable (not 0, not too large)
+      if (distance === 0) {
+        throw new Error("Pickup and dropoff addresses appear to be the same location. Please check the addresses.");
+      }
+
+      if (distance > 100) {
+        throw new Error(`Distance (${distance} km) exceeds maximum allowed range. Please choose addresses within Helsinki metropolitan area.`);
+      }
+
+      // Calculate pricing with validated coordinates
       const pricing = calculatePriceBreakdown(
         pickupCoords.lat,
         pickupCoords.lng,
@@ -146,14 +178,17 @@ export const bookingService = {
         formData.itemSize
       );
 
+      console.log("💰 Pricing calculated:", pricing);
+
+      // Create booking with validated data
       const { data, error } = await supabase
         .from("bookings")
         .insert({
           consumer_id: userId,
-          pickup_address: formData.pickupAddress,
+          pickup_address: pickupCoords.formatted_address || formData.pickupAddress,
           pickup_lat: pickupCoords.lat,
           pickup_lng: pickupCoords.lng,
-          dropoff_address: formData.dropoffAddress,
+          dropoff_address: dropoffCoords.formatted_address || formData.dropoffAddress,
           dropoff_lat: dropoffCoords.lat,
           dropoff_lng: dropoffCoords.lng,
           item_type: formData.itemType as ItemType,
@@ -174,9 +209,10 @@ export const bookingService = {
 
       if (error) throw error;
 
+      console.log("✅ Booking created successfully:", data.id);
       return { success: true, data };
     } catch (error) {
-      console.error("Error creating booking:", error);
+      console.error("❌ Error creating booking:", error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : "Failed to create booking" 
