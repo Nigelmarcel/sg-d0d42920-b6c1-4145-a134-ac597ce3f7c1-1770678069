@@ -157,10 +157,7 @@ function TransporterDashboardContent() {
   };
 
   const handleAcceptJob = async (bookingId: string) => {
-    if (acceptingJobId) return; // Prevent double-clicks
-
-    const confirmed = confirm("Accept this job?");
-    if (!confirmed) return;
+    if (!userId) return;
 
     setAcceptingJobId(bookingId);
 
@@ -169,24 +166,27 @@ function TransporterDashboardContent() {
       
       if (success) {
         toast({
-          title: "Success!",
-          description: "Job accepted successfully!",
-          variant: "default",
+          title: "Success",
+          description: "Job accepted successfully! Check 'My Jobs' section.",
         });
+        
+        // Refresh data
         await fetchJobs();
       } else {
         toast({
           title: "Unable to Accept Job",
-          description: "This job may have been taken by another driver. Please try another job.",
+          description: "This job has already been accepted by another driver.",
           variant: "destructive",
         });
-        await fetchJobs(); // Refresh to remove the taken job
+        
+        // Refresh available jobs list
+        await fetchJobs();
       }
     } catch (error) {
       console.error("Error accepting job:", error);
       toast({
         title: "Error",
-        description: "An error occurred. Please try again.",
+        description: "An error occurred while accepting the job. Please try again.",
         variant: "destructive",
       });
     } finally {

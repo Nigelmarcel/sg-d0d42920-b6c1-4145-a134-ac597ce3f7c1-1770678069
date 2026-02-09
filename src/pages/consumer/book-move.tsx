@@ -40,6 +40,7 @@ function BookMoveContent() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [date, setDate] = useState<Date>();
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -343,7 +344,7 @@ function BookMoveContent() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label>Select Date & Time</Label>
-                <Popover>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -356,14 +357,17 @@ function BookMoveContent() {
                       {date ? format(date, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={date}
-                      onSelect={handleDateSelect}
-                      disabled={(date) =>
-                        date < new Date() || date < new Date("1900-01-01")
-                      }
+                      onSelect={(newDate) => {
+                        if (newDate) {
+                          handleDateSelect(newDate);
+                          setIsCalendarOpen(false);
+                        }
+                      }}
+                      disabled={(date) => date < new Date()}
                       initialFocus
                     />
                   </PopoverContent>
