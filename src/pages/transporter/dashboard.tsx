@@ -260,9 +260,6 @@ export default function TransporterDashboard() {
   };
 
   const handleLogout = async () => {
-    const confirmed = window.confirm("Are you sure you want to log out?");
-    if (!confirmed) return;
-
     await authService.signOut();
     toast({
       title: "👋 Logged Out",
@@ -309,10 +306,6 @@ export default function TransporterDashboard() {
     }
   };
 
-  const getItemIcon = (itemType: string) => {
-    return "🛋️";
-  };
-
   const getSizeBadge = (size: string) => {
     const colors = {
       small: "bg-blue-100 text-blue-700",
@@ -354,7 +347,9 @@ export default function TransporterDashboard() {
         {/* Header: Item Type + Earnings */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{getItemIcon(booking.item_type)}</span>
+            <div className="w-10 h-10 rounded-lg bg-navy/10 flex items-center justify-center">
+              <Package className="h-5 w-5 text-navy" />
+            </div>
             <div>
               <h3 className="font-semibold capitalize text-lg text-slate-900">
                 {(booking.item_type || "item").replace("_", " ")}
@@ -373,7 +368,7 @@ export default function TransporterDashboard() {
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-emerald-600">
+            <div className="text-2xl font-bold text-gold">
               €{(booking.transporter_earnings || 0).toFixed(2)}
             </div>
           </div>
@@ -573,19 +568,19 @@ export default function TransporterDashboard() {
                     {/* Quick Stats */}
                     <div className="px-4 py-3 border-b border-border">
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-success/10 rounded-lg p-3">
+                        <div className="bg-gold/10 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-1">
-                            <DollarSign className="w-4 h-4 text-success" />
-                            <p className="text-xs font-medium text-success">Total Earnings</p>
+                            <DollarSign className="w-4 h-4 text-gold" />
+                            <p className="text-xs font-medium text-gold">Total Earnings</p>
                           </div>
-                          <p className="text-lg font-bold text-success">€{totalEarnings.toFixed(2)}</p>
+                          <p className="text-lg font-bold text-gold">€{totalEarnings.toFixed(2)}</p>
                         </div>
-                        <div className="bg-primary/10 rounded-lg p-3">
+                        <div className="bg-navy/10 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-1">
-                            <Award className="w-4 h-4 text-primary" />
-                            <p className="text-xs font-medium text-primary">Completed</p>
+                            <Award className="w-4 h-4 text-navy" />
+                            <p className="text-xs font-medium text-navy">Completed</p>
                           </div>
-                          <p className="text-lg font-bold text-primary">{completedCount}</p>
+                          <p className="text-lg font-bold text-navy">{completedCount}</p>
                         </div>
                       </div>
                     </div>

@@ -369,21 +369,21 @@ export default function ConsumerDashboard() {
                     {/* Quick Stats */}
                     <div className="px-4 py-3 border-b border-border">
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-success/10 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-success">
+                        <div className="bg-gold/10 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-gold">
                             <DollarSign className="h-4 w-4" />
                             <span className="text-xs font-medium">Total Spent</span>
                           </div>
-                          <p className="text-lg font-bold text-success mt-1">
+                          <p className="text-lg font-bold text-gold mt-1">
                             €{totalSpent.toFixed(2)}
                           </p>
                         </div>
-                        <div className="bg-primary/10 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-primary">
+                        <div className="bg-navy/10 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-navy">
                             <TrendingUp className="h-4 w-4" />
                             <span className="text-xs font-medium">Completed</span>
                           </div>
-                          <p className="text-lg font-bold text-primary mt-1">
+                          <p className="text-lg font-bold text-navy mt-1">
                             {completedCount}
                           </p>
                         </div>
@@ -599,7 +599,7 @@ export default function ConsumerDashboard() {
                         </div>
                         {/* Price */}
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900">
+                          <p className="text-2xl font-bold text-gold">
                             €{booking.total_price?.toFixed(2)}
                           </p>
                         </div>
