@@ -18,25 +18,30 @@ import {
   XCircle,
   MapPin, 
   Calendar,
+  User,
+  Euro,
+  MessageSquare,
+  Navigation,
   Star,
   ChevronDown,
-  User,
   Settings,
   LogOut,
   DollarSign,
   TrendingUp,
-  Navigation,
-  MessageSquare,
   RotateCcw,
   Plus,
   Ruler,
   Phone,
+  Mail,
   AlertCircle,
   Loader2,
   Camera,
   Truck,
   X,
-  Trash2
+  Trash2,
+  Download,
+  Save,
+  RefreshCw
 } from "lucide-react";
 import { ChatDialog } from "@/components/ChatDialog";
 import { TrackingMap } from "@/components/TrackingMap";
@@ -299,40 +304,101 @@ export default function ConsumerDashboard() {
 
     try {
       const success = await bookingService.deleteBooking(bookingId);
+      
       if (success) {
         toast({
           title: "🗑️ Booking Deleted",
           description: "The booking has been permanently removed",
         });
-        
-        // Refresh bookings list
-        if (profile?.id) {
-          const bookings = await bookingService.getConsumerBookings(profile.id);
-          setAllBookings(bookings);
-          
-          // Recalculate stats
-          const completed = bookings.filter(b => b.status === "delivered");
-          const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
-          const pending = bookings.filter(b => b.status === "pending");
 
-          setCompletedCount(completed.length);
-          setActiveCount(active.length);
-          setPendingCount(pending.length);
+        // Refresh bookings
+        const bookings = await bookingService.getConsumerBookings(profile.id);
+        setAllBookings(bookings);
 
-          const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
-          setTotalSpent(spent);
-        }
-      } else {
-        throw new Error("Failed to delete booking");
+        // Recalculate stats
+        const completed = bookings.filter(b => b.status === "delivered");
+        const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
+        const pending = bookings.filter(b => b.status === "pending");
+
+        setCompletedCount(completed.length);
+        setActiveCount(active.length);
+        setPendingCount(pending.length);
+
+        const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
+        setTotalSpent(spent);
       }
-    } catch (error) {
-      console.error("Error deleting booking:", error);
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete booking",
+        description: error.message || "Failed to delete booking",
         variant: "destructive",
       });
     }
+  };
+
+  const handleSaveBookingDetails = (booking: Booking) => {
+    // Create booking receipt/details text
+    const bookingDetails = `
+VANGO - Booking Receipt
+${"=".repeat(50)}
+
+Booking ID: ${booking.id}
+Date: ${new Date(booking.created_at).toLocaleDateString()}
+Status: ${getStatusLabel(booking.status).toUpperCase()}
+
+${"=".repeat(50)}
+PICKUP DETAILS
+${"=".repeat(50)}
+Address: ${booking.pickup_address}
+${booking.scheduled_at ? `Scheduled: ${new Date(booking.scheduled_at).toLocaleString()}` : ""}
+
+${"=".repeat(50)}
+DROPOFF DETAILS
+${"=".repeat(50)}
+Address: ${booking.dropoff_address}
+
+${"=".repeat(50)}
+ITEM DETAILS
+${"=".repeat(50)}
+Description: ${booking.item_description || "N/A"}
+Size: ${booking.item_size?.toUpperCase() || "N/A"}
+${booking.special_instructions ? `Special Instructions: ${booking.special_instructions}` : ""}
+
+${"=".repeat(50)}
+PRICING BREAKDOWN
+${"=".repeat(50)}
+Distance: ${booking.distance_km?.toFixed(2) || "N/A"} km
+Base Price: €${booking.base_price?.toFixed(2) || "0.00"}
+Distance Fee: €${booking.distance_price?.toFixed(2) || "0.00"}
+Extras: €${booking.extras_price?.toFixed(2) || "0.00"}
+${"─".repeat(50)}
+Total: €${booking.total_price?.toFixed(2) || "0.00"}
+
+${booking.transporter_name ? `Transporter: ${booking.transporter_name}` : ""}
+${booking.completed_at ? `Completed: ${new Date(booking.completed_at).toLocaleString()}` : ""}
+${booking.cancelled_at ? `Cancelled: ${new Date(booking.cancelled_at).toLocaleString()}` : ""}
+
+${"=".repeat(50)}
+Thank you for using VANGO!
+Questions? Contact us at support@vango.fi
+${"=".repeat(50)}
+    `.trim();
+
+    // Create blob and download
+    const blob = new Blob([bookingDetails], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `VANGO-Booking-${booking.id.slice(0, 8)}-${new Date(booking.created_at).toISOString().split("T")[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "💾 Booking Saved",
+      description: "Booking details downloaded successfully",
+    });
   };
 
   const handleLogout = async () => {
@@ -801,44 +867,53 @@ export default function ConsumerDashboard() {
                       )}
 
                       {/* Completed Booking Actions */}
-                      {booking.status === "delivered" && (
-                        <>
-                          <Button
-                            variant="outline"
-                            className="w-full"
-                          >
-                            <Star className="h-4 w-4 mr-2" />
-                            Leave Review
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => router.push(`/consumer/book-move?rebook=${booking.id}`)}
-                          >
-                            <RotateCcw className="h-4 w-4 mr-2" />
-                            Book Again
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteBooking(booking.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </Button>
-                        </>
-                      )}
-
-                      {/* Cancelled Booking Actions */}
-                      {booking.status === "cancelled" && (
-                        <Button
-                          variant="outline"
-                          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeleteBooking(booking.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </Button>
+                      {(booking.status === "delivered" || booking.status === "cancelled") && (
+                        <div className="flex flex-col gap-2">
+                          {booking.status === "delivered" && (
+                            <>
+                              <Button
+                                onClick={() => {/* TODO: Implement review */}}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <Star className="h-4 w-4 mr-2" />
+                                Leave Review
+                              </Button>
+                              <Button
+                                onClick={() => {/* TODO: Rebook */}}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Book Again
+                              </Button>
+                            </>
+                          )}
+                          
+                          {/* Save & Delete Actions Row */}
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              onClick={() => handleSaveBookingDetails(booking)}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-blue-600 hover:bg-blue-50 border-blue-200"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Save
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteBooking(booking.id)}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-red-600 hover:bg-red-50 border-red-200"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>

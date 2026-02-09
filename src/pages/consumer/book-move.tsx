@@ -11,7 +11,22 @@ import { useToast } from "@/hooks/use-toast";
 import { bookingService } from "@/services/bookingService";
 import { geocodingService } from "@/services/geocodingService";
 import { authService } from "@/services/authService";
-import { Calendar, MapPin, Package, FileText, Clock, CheckCircle2, X, Loader2, Navigation } from "lucide-react";
+import {
+  MapPin,
+  Calendar,
+  Package,
+  FileText,
+  Loader2,
+  ArrowRight,
+  Check,
+  Box,
+  Package2,
+  Boxes,
+  CheckCircle2,
+  Clock,
+  X,
+  Navigation
+} from "lucide-react";
 
 type DeliverySize = "small" | "medium" | "large";
 
