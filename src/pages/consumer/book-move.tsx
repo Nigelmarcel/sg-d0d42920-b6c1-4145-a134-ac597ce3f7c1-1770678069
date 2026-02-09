@@ -102,96 +102,14 @@ export default function BookMove() {
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
 
-  // Autocomplete refs
-  const pickupInputRef = useRef<HTMLInputElement>(null);
-  const dropoffInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     fetchUser();
-    loadGoogleMapsScript();
   }, []);
 
   const fetchUser = async () => {
     const session = await authService.getCurrentSession();
     if (session?.user) {
       setUserId(session.user.id);
-    }
-  };
-
-  const loadGoogleMapsScript = () => {
-    if (typeof window === "undefined") return;
-
-    // Check if Google Maps is already loaded
-    if (window.google?.maps?.places) {
-      initAutocomplete();
-      return;
-    }
-
-    // Check if script is already being loaded
-    const existingScript = document.querySelector(
-      'script[src*="maps.googleapis.com"]'
-    );
-    if (existingScript) {
-      existingScript.addEventListener("load", initAutocomplete);
-      return;
-    }
-
-    // Load Google Maps script
-    const script = document.createElement("script");
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    
-    if (!apiKey) {
-      console.error("Google Maps API key is missing");
-      toast({
-        title: "Configuration Error",
-        description: "Google Maps is not configured. Please contact support.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = initAutocomplete;
-    script.onerror = () => {
-      console.error("Failed to load Google Maps script");
-      toast({
-        title: "Map Loading Failed",
-        description: "Could not load Google Maps. Please refresh the page.",
-        variant: "destructive"
-      });
-    };
-    document.head.appendChild(script);
-  };
-
-  const initAutocomplete = () => {
-    if (!window.google?.maps?.places) {
-      console.error("Google Maps Places library not loaded");
-      return;
-    }
-
-    if (!pickupInputRef.current || !dropoffInputRef.current) {
-      // Retry after a short delay if refs aren't ready
-      setTimeout(initAutocomplete, 100);
-      return;
-    }
-
-    try {
-      const options = {
-        componentRestrictions: { country: "fi" },
-        fields: ["formatted_address", "geometry"]
-      };
-
-      new window.google.maps.places.Autocomplete(pickupInputRef.current, options);
-      new window.google.maps.places.Autocomplete(dropoffInputRef.current, options);
-    } catch (error) {
-      console.error("Error initializing autocomplete:", error);
-      toast({
-        title: "Address Autocomplete Error",
-        description: "You can still type addresses manually.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -527,11 +445,10 @@ export default function BookMove() {
                 <div>
                   <Label htmlFor="pickup">Pickup Address</Label>
                   <Input
-                    ref={pickupInputRef}
                     id="pickup"
                     value={pickupAddress}
                     onChange={(e) => setPickupAddress(e.target.value)}
-                    placeholder="Enter pickup address in Helsinki"
+                    placeholder="Enter pickup address in Helsinki (e.g., Mannerheimintie 1, Helsinki)"
                     required
                   />
                 </div>
@@ -539,11 +456,10 @@ export default function BookMove() {
                 <div>
                   <Label htmlFor="dropoff">Dropoff Address</Label>
                   <Input
-                    ref={dropoffInputRef}
                     id="dropoff"
                     value={dropoffAddress}
                     onChange={(e) => setDropoffAddress(e.target.value)}
-                    placeholder="Enter dropoff address in Helsinki"
+                    placeholder="Enter dropoff address in Helsinki (e.g., Kamppi, Helsinki)"
                     required
                   />
                 </div>
