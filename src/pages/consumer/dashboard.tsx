@@ -33,7 +33,9 @@ import {
   Phone,
   AlertCircle,
   Loader2,
-  Camera
+  Camera,
+  Truck,
+  X
 } from "lucide-react";
 import { ChatDialog } from "@/components/ChatDialog";
 
@@ -52,6 +54,7 @@ export default function ConsumerDashboard() {
   // Bookings state
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+  const [activeTab, setActiveTab] = useState<"active" | "pending" | "completed">("active");
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all");
   const [loading, setLoading] = useState(true);
 
@@ -60,6 +63,12 @@ export default function ConsumerDashboard() {
   const [completedCount, setCompletedCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+
+  const stats = {
+    active: activeCount,
+    pending: pendingCount,
+    completed: completedCount
+  };
 
   // Chat dialog state
   const [chatOpen, setChatOpen] = useState(false);
@@ -140,12 +149,16 @@ export default function ConsumerDashboard() {
 
   // Filter bookings by status
   useEffect(() => {
-    if (activeFilter === "all") {
-      setFilteredBookings(allBookings);
+    if (activeTab === "active") {
+      setFilteredBookings(allBookings.filter(b => ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"].includes(b.status)));
+    } else if (activeTab === "pending") {
+      setFilteredBookings(allBookings.filter(b => b.status === "pending"));
+    } else if (activeTab === "completed") {
+      setFilteredBookings(allBookings.filter(b => b.status === "delivered" || b.status === "cancelled"));
     } else {
-      setFilteredBookings(allBookings.filter(b => b.status === activeFilter));
+      setFilteredBookings(allBookings);
     }
-  }, [activeFilter, allBookings]);
+  }, [activeTab, allBookings]);
 
   // Close user menu on click outside
   useEffect(() => {
@@ -438,90 +451,68 @@ export default function ConsumerDashboard() {
           </div>
 
           {/* Stats Cards (Interactive Tabs) */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            {/* All Bookings */}
-            <Card
-              onClick={() => setActiveFilter("all")}
-              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
-                activeFilter === "all"
-                  ? "ring-2 ring-primary shadow-lg bg-primary/5"
-                  : "hover:ring-1 hover:ring-border bg-card"
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Active Bookings Card */}
+            <Card 
+              className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                activeTab === "active" 
+                  ? "ring-2 ring-primary shadow-lg" 
+                  : "hover:border-primary/50"
               }`}
+              onClick={() => setActiveTab("active")}
             >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-md">
-                    <Package className="h-4 w-4 text-primary" />
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Active Moves</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.active}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">All Bookings</p>
-                    <p className="text-2xl font-bold text-primary">{allBookings.length}</p>
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Truck className="h-6 w-6 text-primary" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Pending */}
-            <Card
-              onClick={() => setActiveFilter("pending")}
-              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
-                activeFilter === "pending"
-                  ? "ring-2 ring-warning shadow-lg bg-warning/5"
-                  : "hover:ring-1 hover:ring-border bg-card"
+            {/* Pending Bookings Card */}
+            <Card 
+              className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                activeTab === "pending" 
+                  ? "ring-2 ring-accent shadow-lg" 
+                  : "hover:border-accent/50"
               }`}
+              onClick={() => setActiveTab("pending")}
             >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-warning/10 rounded-md">
-                    <Clock className="h-4 w-4 text-warning" />
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Pending</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.pending}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">Pending</p>
-                    <p className="text-2xl font-bold text-warning">{pendingCount}</p>
+                  <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <Clock className="h-6 w-6 text-accent" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Active */}
-            <Card
-              onClick={() => setActiveFilter("accepted")}
-              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
-                activeFilter === "accepted"
-                  ? "ring-2 ring-accent shadow-lg bg-accent/5"
-                  : "hover:ring-1 hover:ring-border bg-card"
+            {/* Completed Bookings Card */}
+            <Card 
+              className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                activeTab === "completed" 
+                  ? "ring-2 ring-secondary shadow-lg" 
+                  : "hover:border-secondary/50"
               }`}
+              onClick={() => setActiveTab("completed")}
             >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-accent/10 rounded-md">
-                    <Navigation className="h-4 w-4 text-accent" />
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Completed</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.completed}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">Active</p>
-                    <p className="text-2xl font-bold text-accent">{activeCount}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Completed */}
-            <Card
-              onClick={() => setActiveFilter("delivered")}
-              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
-                activeFilter === "delivered"
-                  ? "ring-2 ring-success shadow-lg bg-success/5"
-                  : "hover:ring-1 hover:ring-border bg-card"
-              }`}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-success/10 rounded-md">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">Completed</p>
-                    <p className="text-2xl font-bold text-success">{completedCount}</p>
+                  <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-6 w-6 text-secondary" />
                   </div>
                 </div>
               </CardContent>
@@ -585,10 +576,26 @@ export default function ConsumerDashboard() {
                             [{booking.item_size.charAt(0).toUpperCase()}] {booking.item_size}
                           </Badge>
                           {/* Status Badge */}
-                          <Badge className={getStatusBadge(booking.status)}>
-                            {getStatusIcon(booking.status)}
-                            <span className="ml-1">{getStatusLabel(booking.status)}</span>
-                          </Badge>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                              booking.status === "pending" 
+                                ? "bg-accent/10 text-accent border border-accent/20" 
+                                : booking.status === "accepted" 
+                                ? "bg-primary/10 text-primary border border-primary/20"
+                                : ["picked_up", "en_route_pickup", "en_route_dropoff"].includes(booking.status)
+                                ? "bg-primary/20 text-primary border border-primary/30"
+                                : booking.status === "delivered"
+                                ? "bg-secondary/10 text-secondary border border-secondary/20"
+                                : "bg-destructive/10 text-destructive border border-destructive/20"
+                            }`}>
+                              {booking.status === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                              {booking.status === "accepted" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                              {["picked_up", "en_route_pickup", "en_route_dropoff"].includes(booking.status) && <Truck className="h-3 w-3 mr-1" />}
+                              {booking.status === "delivered" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                              {booking.status === "cancelled" && <X className="h-3 w-3 mr-1" />}
+                              {booking.status.replace("_", " ").toUpperCase()}
+                            </span>
+                          </div>
                         </div>
                         {/* Price */}
                         <div className="text-right">

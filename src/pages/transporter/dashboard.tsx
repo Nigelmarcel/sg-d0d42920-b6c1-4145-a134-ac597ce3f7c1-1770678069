@@ -32,7 +32,10 @@ import {
   MessageSquare,
   Camera,
   Loader2,
-  XCircle
+  XCircle,
+  Truck,
+  Euro,
+  X
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -59,6 +62,13 @@ export default function TransporterDashboard() {
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  
+  const stats = {
+    available: availableJobs.length,
+    active: activeJobs.length,
+    completed: completedJobs.length,
+    totalEarnings
+  };
   
   // Chat state
   const [chatOpen, setChatOpen] = useState(false);
@@ -425,15 +435,24 @@ export default function TransporterDashboard() {
           </div>
         </div>
 
-        {/* Status Badge (for active/completed jobs) */}
-        {booking.status && booking.status !== "pending" && (
-          <>
-            <Separator className="my-4" />
-            <div className="flex items-center justify-between">
-              <div>{getStatusBadge(booking.status)}</div>
-            </div>
-          </>
-        )}
+        {/* Status Badge */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+            booking.status === "pending" || booking.status === "accepted"
+              ? "bg-accent/10 text-accent border border-accent/20" 
+              : ["picked_up", "en_route_pickup", "en_route_dropoff"].includes(booking.status)
+              ? "bg-primary/20 text-primary border border-primary/30"
+              : booking.status === "delivered"
+              ? "bg-secondary/10 text-secondary border border-secondary/20"
+              : "bg-destructive/10 text-destructive border border-destructive/20"
+          }`}>
+            {(booking.status === "pending" || booking.status === "accepted") && <Clock className="h-3 w-3 mr-1" />}
+            {["picked_up", "en_route_pickup", "en_route_dropoff"].includes(booking.status) && <Truck className="h-3 w-3 mr-1" />}
+            {booking.status === "delivered" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+            {booking.status === "cancelled" && <X className="h-3 w-3 mr-1" />}
+            {booking.status.replace("_", " ").toUpperCase()}
+          </span>
+        </div>
 
         {/* Location Tracker (for active jobs only) */}
         {showActions && isActiveJob(booking.status || "") && (
@@ -651,68 +670,83 @@ export default function TransporterDashboard() {
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Interactive Stats Cards (Tab Navigation) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            {/* Available Jobs Tab */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {/* Available Jobs Card */}
             <Card 
-              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
+              className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
                 activeTab === "available" 
-                  ? "ring-2 ring-primary shadow-lg bg-primary/5" 
-                  : "hover:ring-1 hover:ring-border bg-card"
+                  ? "ring-2 ring-primary shadow-lg" 
+                  : "hover:border-primary/50"
               }`}
               onClick={() => setActiveTab("available")}
             >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-md">
-                    <Package className="h-4 w-4 text-primary" />
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Available</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.available}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">Available Jobs</p>
-                    <p className="text-2xl font-bold text-primary">{availableJobs.length}</p>
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Package className="h-6 w-6 text-primary" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Active Jobs Tab */}
+            {/* Active Jobs Card */}
             <Card 
-              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
+              className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
                 activeTab === "active" 
-                  ? "ring-2 ring-accent shadow-lg bg-accent/5" 
-                  : "hover:ring-1 hover:ring-border bg-card"
+                  ? "ring-2 ring-accent shadow-lg" 
+                  : "hover:border-accent/50"
               }`}
               onClick={() => setActiveTab("active")}
             >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-accent/10 rounded-md">
-                    <Clock className="h-4 w-4 text-accent" />
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Active</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.active}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">Active Jobs</p>
-                    <p className="text-2xl font-bold text-accent">{activeJobs.length}</p>
+                  <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <Truck className="h-6 w-6 text-accent" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Completed Jobs Tab */}
+            {/* Completed Jobs Card */}
             <Card 
-              className={`cursor-pointer transition-all duration-200 hover:shadow-lg border ${
+              className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
                 activeTab === "completed" 
-                  ? "ring-2 ring-success shadow-lg bg-success/5" 
-                  : "hover:ring-1 hover:ring-border bg-card"
+                  ? "ring-2 ring-secondary shadow-lg" 
+                  : "hover:border-secondary/50"
               }`}
               onClick={() => setActiveTab("completed")}
             >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-success/10 rounded-md">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Completed</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.completed}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">Completed Jobs</p>
-                    <p className="text-2xl font-bold text-success">{completedCount}</p>
+                  <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-6 w-6 text-secondary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Earnings Card */}
+            <Card className="cursor-default">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Earnings</p>
+                    <p className="text-3xl font-bold text-foreground">€{stats.totalEarnings.toFixed(2)}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Euro className="h-6 w-6 text-primary" />
                   </div>
                 </div>
               </CardContent>
