@@ -23,7 +23,15 @@ import {
   LogOut,
   TrendingUp,
   Briefcase,
-  Star
+  Star,
+  Box,
+  Sofa,
+  Zap,
+  Wine,
+  PackageOpen,
+  FileText,
+  Image as ImageIcon,
+  Ruler
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { bookingService } from "@/services/bookingService";
@@ -34,6 +42,8 @@ import { TrackingMap } from "@/components/TrackingMap";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
+type ItemType = Database["public"]["Enums"]["item_type"];
+type ItemSize = Database["public"]["Enums"]["item_size"];
 
 const STATUS_CONFIG: Record<BookingStatus, { 
   label: string; 
@@ -47,6 +57,20 @@ const STATUS_CONFIG: Record<BookingStatus, {
   en_route_dropoff: { label: "En Route to Dropoff", variant: "default", color: "text-purple-600" },
   delivered: { label: "Completed", variant: "outline", color: "text-green-600" },
   cancelled: { label: "Cancelled", variant: "destructive", color: "text-red-600" },
+};
+
+const ITEM_TYPE_CONFIG: Record<ItemType, { label: string; icon: any; color: string }> = {
+  small_furniture: { label: "Small Furniture", icon: Sofa, color: "text-blue-600" },
+  large_furniture: { label: "Large Furniture", icon: Sofa, color: "text-purple-600" },
+  appliances: { label: "Appliances", icon: Zap, color: "text-yellow-600" },
+  fragile: { label: "Fragile Items", icon: Wine, color: "text-red-600" },
+  home_move: { label: "Home Move", icon: Home, color: "text-green-600" },
+};
+
+const ITEM_SIZE_CONFIG: Record<ItemSize, { label: string; badge: string; color: string }> = {
+  small: { label: "Small", badge: "S", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+  medium: { label: "Medium", badge: "M", color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
+  large: { label: "Large", badge: "L", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },
 };
 
 export default function TransporterDashboard() {
@@ -229,6 +253,62 @@ function TransporterDashboardContent() {
     return statusFlow[currentStatus];
   };
 
+  const renderItemDetails = (job: Booking) => {
+    const ItemIcon = ITEM_TYPE_CONFIG[job.item_type as ItemType]?.icon || Package;
+    const sizeConfig = ITEM_SIZE_CONFIG[job.item_size as ItemSize];
+    
+    return (
+      <div className="space-y-3">
+        {/* Item Type and Size */}
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-800 ${ITEM_TYPE_CONFIG[job.item_type as ItemType]?.color}`}>
+            <ItemIcon className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h4 className="font-semibold">
+                {ITEM_TYPE_CONFIG[job.item_type as ItemType]?.label || job.item_type}
+              </h4>
+              <Badge className={`${sizeConfig?.color} font-semibold px-2 py-0.5 text-xs`}>
+                {sizeConfig?.badge || job.item_size}
+              </Badge>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {sizeConfig?.label} package
+            </p>
+          </div>
+        </div>
+
+        {/* Item Photos */}
+        {job.item_photos && job.item_photos.length > 0 && (
+          <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+            <ImageIcon className="w-4 h-4 text-blue-600" />
+            <span className="text-sm text-blue-700 dark:text-blue-300">
+              {job.item_photos.length} photo{job.item_photos.length > 1 ? "s" : ""} attached
+            </span>
+          </div>
+        )}
+
+        {/* Special Instructions */}
+        {job.special_instructions && (
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+            <div className="flex items-start gap-2">
+              <FileText className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
+                  Special Instructions
+                </p>
+                <p className="text-sm text-yellow-900 dark:text-yellow-100">
+                  {job.special_instructions}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8">
@@ -346,26 +426,18 @@ function TransporterDashboardContent() {
                   <Card key={job.id} className="border-l-4 border-l-orange-500">
                     <CardContent className="pt-6">
                       <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                            <Package className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-lg capitalize">
-                              {job.item_type?.replace(/_/g, " ")}
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                              {job.item_size} item
-                            </p>
-                          </div>
+                        <div className="flex-1">
+                          {renderItemDetails(job)}
                         </div>
-                        <div className="text-right">
+                        <div className="text-right ml-4">
                           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                             €{job.transporter_earnings?.toFixed(2)}
                           </p>
                           <p className="text-xs text-gray-500">Your earnings</p>
                         </div>
                       </div>
+
+                      <Separator className="my-4" />
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div className="flex items-start gap-2">
@@ -383,15 +455,6 @@ function TransporterDashboardContent() {
                           </div>
                         </div>
                       </div>
-
-                      {job.special_instructions && (
-                        <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                            Special Instructions
-                          </p>
-                          <p className="text-sm">{job.special_instructions}</p>
-                        </div>
-                      )}
 
                       <Separator className="my-4" />
 
@@ -452,23 +515,23 @@ function TransporterDashboardContent() {
                     <Card key={job.id} className="border-l-4 border-l-blue-500">
                       <CardContent className="pt-6">
                         <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                              <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-lg capitalize">
-                                {job.item_type?.replace(/_/g, " ")}
-                              </h3>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                                {job.item_size} item
+                          <div className="flex-1">
+                            {renderItemDetails(job)}
+                          </div>
+                          <div className="ml-4">
+                            <Badge variant={STATUS_CONFIG[job.status]?.variant || "default"} className="mb-2">
+                              {STATUS_CONFIG[job.status]?.label || job.status}
+                            </Badge>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                €{job.transporter_earnings?.toFixed(2)}
                               </p>
+                              <p className="text-xs text-gray-500">Your earnings</p>
                             </div>
                           </div>
-                          <Badge variant={STATUS_CONFIG[job.status]?.variant || "default"}>
-                            {STATUS_CONFIG[job.status]?.label || job.status}
-                          </Badge>
                         </div>
+
+                        <Separator className="my-4" />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                           <div className="flex items-start gap-2">
@@ -487,15 +550,6 @@ function TransporterDashboardContent() {
                           </div>
                         </div>
 
-                        {job.special_instructions && (
-                          <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                              Special Instructions
-                            </p>
-                            <p className="text-sm">{job.special_instructions}</p>
-                          </div>
-                        )}
-
                         <Separator className="my-4" />
 
                         <div className="flex items-center justify-between">
@@ -509,30 +563,18 @@ function TransporterDashboardContent() {
                               {job.distance_km?.toFixed(1)} km
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                €{job.transporter_earnings?.toFixed(2)}
-                              </p>
-                              <p className="text-xs text-gray-500">Your earnings</p>
-                            </div>
-                            {isActive && nextStatus && (
-                              <Button
-                                onClick={() => handleUpdateStatus(job.id, nextStatus)}
-                                size="sm"
-                              >
-                                {nextStatus === "en_route_pickup" && "Start Trip"}
-                                {nextStatus === "picked_up" && "Confirm Pickup"}
-                                {nextStatus === "en_route_dropoff" && "En Route to Dropoff"}
-                                {nextStatus === "delivered" && "Complete Delivery"}
-                              </Button>
-                            )}
-                          </div>
+                          {isActive && nextStatus && (
+                            <Button
+                              onClick={() => handleUpdateStatus(job.id, nextStatus)}
+                              size="sm"
+                            >
+                              {nextStatus === "en_route_pickup" && "Start Trip"}
+                              {nextStatus === "picked_up" && "Confirm Pickup"}
+                              {nextStatus === "en_route_dropoff" && "En Route to Dropoff"}
+                              {nextStatus === "delivered" && "Complete Delivery"}
+                            </Button>
+                          )}
                         </div>
-
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {job.scheduled_at && new Date(job.scheduled_at).toLocaleDateString()}
-                        </p>
 
                         {/* Location Tracker for active jobs */}
                         {(job.status === "accepted" || 
