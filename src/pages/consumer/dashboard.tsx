@@ -1,358 +1,704 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
+import { SEO } from "@/components/SEO";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { authService } from "@/services/authService";
+import { profileService } from "@/services/profileService";
+import { bookingService, type Booking } from "@/services/bookingService";
 import { 
   Package, 
-  MapPin, 
-  Calendar, 
   Clock, 
-  Plus, 
-  TrendingUp,
-  CheckCircle,
+  CheckCircle2, 
   XCircle,
-  Truck,
-  AlertCircle,
-  Home,
+  MapPin, 
+  Calendar,
+  Star,
+  ChevronDown,
+  User,
+  Settings,
   LogOut,
-  DollarSign
+  DollarSign,
+  TrendingUp,
+  Navigation,
+  MessageSquare,
+  RotateCcw,
+  Plus
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { bookingService } from "@/services/bookingService";
-import type { Database } from "@/integrations/supabase/types";
-import { format } from "date-fns";
-import { TrackingMap } from "@/components/TrackingMap";
 
-type Booking = Database["public"]["Tables"]["bookings"]["Row"];
-type BookingStatus = Database["public"]["Enums"]["booking_status"];
-
-const STATUS_CONFIG: Record<BookingStatus, { 
-  label: string; 
-  variant: "default" | "secondary" | "destructive" | "outline";
-  icon: React.ComponentType<{ className?: string }>;
-}> = {
-  pending: { label: "Pending", variant: "secondary", icon: Clock },
-  accepted: { label: "Accepted", variant: "default", icon: CheckCircle },
-  en_route_pickup: { label: "Driver En Route to Pickup", variant: "default", icon: Truck },
-  picked_up: { label: "Picked Up", variant: "default", icon: Package },
-  en_route_dropoff: { label: "En Route to Dropoff", variant: "default", icon: Truck },
-  delivered: { label: "Delivered", variant: "outline", icon: CheckCircle },
-  cancelled: { label: "Cancelled", variant: "destructive", icon: XCircle },
-};
+type StatusFilter = "all" | "pending" | "accepted" | "in_transit" | "delivered" | "cancelled";
 
 export default function ConsumerDashboard() {
-  return (
-    <ProtectedRoute allowedRoles={["consumer"]}>
-      <ConsumerDashboardContent />
-    </ProtectedRoute>
-  );
-}
-
-function ConsumerDashboardContent() {
   const router = useRouter();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const { toast } = useToast();
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // User state
+  const [userId, setUserId] = useState<string>("");
+  const [profile, setProfile] = useState<any>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // Bookings state
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+  const [activeFilter, setActiveFilter] = useState<StatusFilter>("all");
   const [loading, setLoading] = useState(true);
-  const [userEmail, setUserEmail] = useState<string>("");
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    completed: 0,
-    totalSpent: 0,
-  });
 
+  // Stats state
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Fetch user profile
   useEffect(() => {
-    fetchUserData();
-    fetchBookings();
-
-    // Subscribe to realtime booking updates
-    const channel = supabase
-      .channel("consumer-bookings")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-        },
-        (payload) => {
-          console.log("Booking update:", payload);
-          fetchBookings(); // Refresh bookings on any change
+    const fetchProfile = async () => {
+      try {
+        const { data: { session } } = await authService.getSession();
+        if (!session) {
+          router.push("/auth/login");
+          return;
         }
-      )
-      .subscribe();
+
+        const userProfile = await profileService.getProfile(session.user.id);
+        if (!userProfile) {
+          router.push("/unauthorized");
+          return;
+        }
+
+        if (userProfile.role !== "consumer") {
+          router.push("/unauthorized");
+          return;
+        }
+
+        setUserId(session.user.id);
+        setProfile(userProfile);
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchProfile();
+  }, [router, toast]);
+
+  // Fetch bookings and stats
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchBookings = async () => {
+      try {
+        setLoading(true);
+        const bookings = await bookingService.getConsumerBookings(userId);
+        setAllBookings(bookings);
+        setFilteredBookings(bookings);
+
+        // Calculate stats
+        const completed = bookings.filter(b => b.status === "delivered");
+        const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
+        const pending = bookings.filter(b => b.status === "pending");
+
+        setCompletedCount(completed.length);
+        setActiveCount(active.length);
+        setPendingCount(pending.length);
+
+        const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
+        setTotalSpent(spent);
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load bookings",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, [userId, toast]);
+
+  // Filter bookings by status
+  useEffect(() => {
+    if (activeFilter === "all") {
+      setFilteredBookings(allBookings);
+    } else {
+      setFilteredBookings(allBookings.filter(b => b.status === activeFilter));
+    }
+  }, [activeFilter, allBookings]);
+
+  // Close user menu on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setUserMenuOpen(false);
+      }
+    }
+
+    if (userMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleEscape);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
     };
-  }, []);
+  }, [userMenuOpen]);
 
-  const fetchUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserEmail(user.email || "");
+  // Helper functions
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getSizeBadge = (size: string) => {
+    const badges = {
+      small: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+      medium: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+      large: "bg-red-100 text-red-700 hover:bg-red-100",
+    };
+    return badges[size as keyof typeof badges] || badges.small;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      pending: "bg-yellow-100 text-yellow-700",
+      accepted: "bg-blue-100 text-blue-700",
+      in_transit: "bg-purple-100 text-purple-700",
+      delivered: "bg-green-100 text-green-700",
+      cancelled: "bg-gray-100 text-gray-700",
+    };
+    return badges[status as keyof typeof badges] || badges.pending;
+  };
+
+  const getStatusIcon = (status: string) => {
+    const icons = {
+      pending: <Clock className="h-4 w-4" />,
+      accepted: <CheckCircle2 className="h-4 w-4" />,
+      in_transit: <Navigation className="h-4 w-4" />,
+      delivered: <CheckCircle2 className="h-4 w-4" />,
+      cancelled: <XCircle className="h-4 w-4" />,
+    };
+    return icons[status as keyof typeof icons] || icons.pending;
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels = {
+      pending: "Waiting for Transporter",
+      accepted: "Accepted",
+      in_transit: "In Transit",
+      delivered: "Delivered",
+      cancelled: "Cancelled",
+    };
+    return labels[status as keyof typeof labels] || status;
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this booking? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      const success = await bookingService.updateBookingStatus(bookingId, "cancelled");
+      if (success) {
+        toast({
+          title: "🚫 Booking Cancelled",
+          description: "Your booking has been cancelled",
+        });
+        // Refresh bookings
+        const bookings = await bookingService.getConsumerBookings(userId);
+        setAllBookings(bookings);
+      }
+    } catch (error) {
+      console.error("Error cancelling booking:", error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel booking",
+        variant: "destructive",
+      });
     }
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
-  };
-
-  const fetchBookings = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const userBookings = await bookingService.getConsumerBookings(user.id);
-      setBookings(userBookings);
-
-      // Calculate stats
-      const total = userBookings.length;
-      const pending = userBookings.filter((b) => b.status === "pending").length;
-      const completed = userBookings.filter((b) => b.status === "delivered").length;
-      const totalSpent = userBookings
-        .filter((b) => b.status === "delivered")
-        .reduce((sum, b) => sum + (b.total_price || 0), 0);
-
-      setStats({ total, pending, completed, totalSpent });
-    } catch (error) {
-      console.error("Error fetching bookings:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancelBooking = async (bookingId: string) => {
-    const confirmed = confirm("Are you sure you want to cancel this booking?");
+    const confirmed = window.confirm("Are you sure you want to log out?");
     if (!confirmed) return;
 
-    const success = await bookingService.cancelBooking(bookingId);
-    if (success) {
-      alert("Booking cancelled successfully");
-      fetchBookings();
-    } else {
-      alert("Failed to cancel booking. Please try again.");
+    try {
+      await authService.signOut();
+      toast({
+        title: "👋 Logged Out",
+        description: "See you next time!",
+      });
+      router.push("/auth/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast({
+        title: "Error",
+        description: "Failed to log out",
+        variant: "destructive",
+      });
     }
   };
 
-  const getStatusIcon = (status: BookingStatus) => {
-    const Icon = STATUS_CONFIG[status]?.icon || AlertCircle;
-    return <Icon className="w-4 h-4" />;
-  };
+  if (!profile) {
+    return (
+      <ProtectedRoute allowedRoles={["consumer"]}>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8">
+    <ProtectedRoute allowedRoles={["consumer"]}>
+      <SEO 
+        title="Consumer Dashboard - VANGO"
+        description="Manage your moving bookings"
+      />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Package className="w-8 h-8 text-indigo-600" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Dashboard</h1>
-              <p className="text-gray-600 dark:text-gray-400">{userEmail}</p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <Button
-            onClick={() => router.push("/consumer/book-move")}
-            size="lg"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Book a New Move
-          </Button>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Bookings
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Pending
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-orange-600">{stats.pending}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Completed
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">{stats.completed}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Total Spent
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">€{stats.totalSpent.toFixed(2)}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Bookings List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Bookings</CardTitle>
-            <CardDescription>
-              Track all your past and upcoming moves
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-8 text-gray-500">Loading bookings...</div>
-            ) : bookings.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-xl font-semibold mb-2">No bookings yet</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Book your first move to get started!
-                </p>
-                <Button onClick={() => router.push("/consumer/book-move")}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Book a Move
-                </Button>
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              {/* Logo & Title */}
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Consumer Dashboard</h1>
+                <p className="text-sm text-gray-600">Welcome back, {profile.full_name || "User"}</p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {bookings.map((booking) => (
-                  <Card key={booking.id} className="border-l-4 border-l-blue-500">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                            <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-lg capitalize">
-                              {booking.item_type?.replace(/_/g, " ")}
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {booking.item_size && (
-                                <span className="capitalize">{booking.item_size} item</span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={STATUS_CONFIG[booking.status]?.variant || "default"}>
-                            {getStatusIcon(booking.status)}
-                            <span className="ml-1">
-                              {STATUS_CONFIG[booking.status]?.label || booking.status}
-                            </span>
+
+              {/* User Menu */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all"
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
+                    <AvatarFallback className="bg-blue-600 text-white">
+                      {getInitials(profile.full_name || "User")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-sm font-medium text-gray-900">{profile.full_name}</p>
+                    <p className="text-xs text-gray-500">{profile.email}</p>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* User Dropdown Menu */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* User Info Section */}
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
+                          <AvatarFallback className="bg-blue-600 text-white text-lg">
+                            {getInitials(profile.full_name || "User")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-gray-900">{profile.full_name}</p>
+                          <p className="text-xs text-gray-500">{profile.email}</p>
+                          <Badge className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-100">
+                            Consumer
                           </Badge>
                         </div>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 text-gray-500 mt-1 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Pick-up</p>
-                            <p className="text-sm font-medium truncate">{booking.pickup_address}</p>
+                    {/* Quick Stats */}
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-green-50 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-green-700">
+                            <DollarSign className="h-4 w-4" />
+                            <span className="text-xs font-medium">Total Spent</span>
                           </div>
+                          <p className="text-lg font-bold text-green-700 mt-1">
+                            €{totalSpent.toFixed(2)}
+                          </p>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 text-gray-500 mt-1 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Drop-off</p>
-                            <p className="text-sm font-medium truncate">{booking.dropoff_address}</p>
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-blue-700">
+                            <TrendingUp className="h-4 w-4" />
+                            <span className="text-xs font-medium">Completed</span>
                           </div>
+                          <p className="text-lg font-bold text-blue-700 mt-1">
+                            {completedCount}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-2">
+                      <button
+                        onClick={() => {
+                          router.push("/consumer/profile");
+                          setUserMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      >
+                        <User className="h-4 w-4" />
+                        Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          toast({
+                            title: "Coming Soon",
+                            description: "Settings page is under development",
+                          });
+                          setUserMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </button>
+                    </div>
+
+                    <Separator />
+
+                    {/* Logout */}
+                    <div className="py-2">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Quick Action Button */}
+          <div className="mb-6">
+            <Button
+              onClick={() => router.push("/consumer/book-move")}
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Book New Move
+            </Button>
+          </div>
+
+          {/* Stats Cards (Interactive Tabs) */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            {/* All Bookings */}
+            <Card
+              onClick={() => setActiveFilter("all")}
+              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+                activeFilter === "all"
+                  ? "ring-2 ring-blue-500 shadow-lg"
+                  : "hover:ring-1 hover:ring-gray-300"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Package className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">All Bookings</p>
+                  <p className="text-2xl font-bold text-blue-600">{allBookings.length}</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Pending */}
+            <Card
+              onClick={() => setActiveFilter("pending")}
+              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+                activeFilter === "pending"
+                  ? "ring-2 ring-yellow-500 shadow-lg"
+                  : "hover:ring-1 hover:ring-gray-300"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-yellow-100 rounded-lg">
+                  <Clock className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Active */}
+            <Card
+              onClick={() => setActiveFilter("accepted")}
+              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+                activeFilter === "accepted"
+                  ? "ring-2 ring-purple-500 shadow-lg"
+                  : "hover:ring-1 hover:ring-gray-300"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Navigation className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Active</p>
+                  <p className="text-2xl font-bold text-purple-600">{activeCount}</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Completed */}
+            <Card
+              onClick={() => setActiveFilter("delivered")}
+              className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+                activeFilter === "delivered"
+                  ? "ring-2 ring-green-500 shadow-lg"
+                  : "hover:ring-1 hover:ring-gray-300"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Completed</p>
+                  <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Current Filter Indicator */}
+          {activeFilter !== "all" && (
+            <div className="mb-4 flex items-center justify-between">
+              <Badge variant="outline" className="text-sm">
+                Showing: {getStatusLabel(activeFilter)}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveFilter("all")}
+                className="text-xs"
+              >
+                Clear Filter
+              </Button>
+            </div>
+          )}
+
+          {/* Bookings List */}
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading bookings...</p>
+            </div>
+          ) : filteredBookings.length === 0 ? (
+            <Card className="p-12 text-center">
+              <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {activeFilter === "all" ? "No bookings yet" : `No ${getStatusLabel(activeFilter).toLowerCase()} bookings`}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {activeFilter === "all" 
+                  ? "Book your first move to get started!"
+                  : "Try selecting a different filter or booking a new move."}
+              </p>
+              <Button
+                onClick={() => router.push("/consumer/book-move")}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Book Your First Move
+              </Button>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {filteredBookings.map((booking) => (
+                <Card key={booking.id} className="p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    {/* Left Section: Booking Details */}
+                    <div className="flex-1 space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          {/* Size Badge */}
+                          <Badge className={getSizeBadge(booking.item_size)}>
+                            [{booking.item_size.charAt(0).toUpperCase()}] {booking.item_size}
+                          </Badge>
+                          {/* Status Badge */}
+                          <Badge className={getStatusBadge(booking.status)}>
+                            {getStatusIcon(booking.status)}
+                            <span className="ml-1">{getStatusLabel(booking.status)}</span>
+                          </Badge>
+                        </div>
+                        {/* Price */}
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-gray-900">
+                            €{booking.total_price?.toFixed(2)}
+                          </p>
                         </div>
                       </div>
 
-                      {booking.special_instructions && (
-                        <div className="mb-4">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Special Instructions</p>
-                          <p className="text-sm bg-gray-50 dark:bg-gray-800 p-2 rounded">
-                            {booking.special_instructions}
+                      {/* Item Description */}
+                      {booking.item_description && (
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-sm text-gray-700">
+                            <span className="font-medium">Item:</span> {booking.item_description}
                           </p>
                         </div>
                       )}
 
-                      <Separator className="my-4" />
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {booking.scheduled_at && format(new Date(booking.scheduled_at), "MMM dd, yyyy")}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            {booking.distance_km?.toFixed(1)} km
+                      {/* Addresses */}
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs text-gray-500">Pickup</p>
+                            <p className="text-sm font-medium text-gray-900">{booking.pickup_address}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                              €{booking.total_price?.toFixed(2)}
-                            </p>
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs text-gray-500">Dropoff</p>
+                            <p className="text-sm font-medium text-gray-900">{booking.dropoff_address}</p>
                           </div>
-                          {booking.status === "pending" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCancelBooking(booking.id)}
-                            >
-                              Cancel
-                            </Button>
-                          )}
                         </div>
                       </div>
 
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {booking.scheduled_at && new Date(booking.scheduled_at).toLocaleDateString()}
-                      </p>
+                      {/* Schedule & Distance */}
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            {booking.scheduled_at 
+                              ? new Date(booking.scheduled_at).toLocaleDateString("en-GB", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })
+                              : "ASAP"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Navigation className="h-4 w-4" />
+                          <span>{booking.distance_km?.toFixed(1)} km</span>
+                        </div>
+                      </div>
 
-                      {/* Show tracking map for active bookings */}
-                      {(booking.status === "accepted" || 
-                        booking.status === "en_route_pickup" || 
-                        booking.status === "picked_up" || 
-                        booking.status === "en_route_dropoff") && (
-                        <div className="mt-4">
-                          <TrackingMap booking={booking} userRole="consumer" />
+                      {/* Transporter Info (if assigned) */}
+                      {booking.transporter_id && (
+                        <div className="bg-blue-50 rounded-lg p-3 flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-blue-600 text-white">
+                              T
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">Transporter Assigned</p>
+                            <div className="flex items-center gap-1 text-xs text-gray-600">
+                              <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                              <span>4.8 rating</span>
+                            </div>
+                          </div>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </div>
+
+                    {/* Right Section: Actions */}
+                    <div className="flex flex-col gap-2 lg:min-w-[200px]">
+                      {/* Active Booking Actions */}
+                      {["accepted", "in_transit"].includes(booking.status) && (
+                        <>
+                          <Button
+                            onClick={() => router.push(`/consumer/dashboard?tracking=${booking.id}`)}
+                            className="bg-blue-600 hover:bg-blue-700 w-full"
+                          >
+                            <Navigation className="h-4 w-4 mr-2" />
+                            Track Live
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                          >
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Chat
+                          </Button>
+                        </>
+                      )}
+
+                      {/* Pending Booking Actions */}
+                      {booking.status === "pending" && (
+                        <Button
+                          onClick={() => handleCancelBooking(booking.id)}
+                          variant="outline"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Cancel
+                        </Button>
+                      )}
+
+                      {/* Completed Booking Actions */}
+                      {booking.status === "delivered" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                          >
+                            <Star className="h-4 w-4 mr-2" />
+                            Leave Review
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => router.push(`/consumer/book-move?rebook=${booking.id}`)}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Book Again
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }

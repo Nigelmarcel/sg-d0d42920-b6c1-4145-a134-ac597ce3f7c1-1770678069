@@ -17,12 +17,11 @@ export interface BookingFormData {
   dropoffAddress: string;
   dropoffLat: number;
   dropoffLng: number;
-  itemType: string;
   itemSize: string;
   itemDescription?: string;
   specialInstructions?: string;
   scheduledFor: string;
-  notes?: string;
+  itemPhotos?: string[];
 }
 
 interface PriceBreakdown {
@@ -192,10 +191,11 @@ export const bookingService = {
           dropoff_address: dropoffCoords.formatted_address || formData.dropoffAddress,
           dropoff_lat: dropoffCoords.lat,
           dropoff_lng: dropoffCoords.lng,
-          item_type: formData.itemType as ItemType,
           item_size: formData.itemSize as "small" | "medium" | "large",
+          item_description: formData.itemDescription || null,
           special_instructions: formData.specialInstructions || null,
           scheduled_at: formData.scheduledFor || null,
+          item_photos: formData.itemPhotos || null,
           distance_km: distance,
           base_price: pricing.basePrice,
           distance_price: pricing.distancePrice,

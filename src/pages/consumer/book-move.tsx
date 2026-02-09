@@ -1,491 +1,548 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
+import { SEO } from "@/components/SEO";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, MapPin, Calendar as CalendarIcon, Package, FileText, CheckCircle } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { bookingService, calculatePrice, type BookingFormData } from "@/services/bookingService";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { bookingService } from "@/services/bookingService";
+import { geocodingService } from "@/services/geocodingService";
+import { authService } from "@/services/authService";
+import { Calendar, MapPin, Package, FileText, Clock, CheckCircle2 } from "lucide-react";
 
-const ITEM_TYPES = [
-  { value: "small_furniture", label: "Small Furniture", description: "Chairs, small tables, lamps" },
-  { value: "large_furniture", label: "Large Furniture", description: "Sofas, beds, wardrobes" },
-  { value: "appliances", label: "Appliances", description: "Washing machines, fridges, ovens" },
-  { value: "fragile", label: "Fragile Items", description: "Glassware, mirrors, artwork" },
-  { value: "home_move", label: "Full Home Move", description: "Complete apartment/house move" },
-];
+type DeliverySize = "small" | "medium" | "large";
 
-const ITEM_SIZES = [
-  { value: "small", label: "Small", description: "Fits in car trunk", price: "1x" },
-  { value: "medium", label: "Medium", description: "Sofa, washing machine", price: "1.5x" },
-  { value: "large", label: "Large", description: "Fridge, wardrobe, king bed", price: "2x" },
+const SIZE_OPTIONS = [
+  {
+    value: "small" as DeliverySize,
+    label: "Small (S)",
+    badge: "S",
+    color: "bg-blue-100 text-blue-700 border-blue-300",
+    hoverColor: "hover:bg-blue-200 hover:border-blue-400",
+    selectedColor: "ring-2 ring-blue-500 bg-blue-50",
+    examples: [
+      "Chair or small table",
+      "TV (<55″)",
+      "Microwave or small appliance",
+      "Boxes (1-3)",
+      "Suitcases or bags"
+    ],
+    icon: "📦"
+  },
+  {
+    value: "medium" as DeliverySize,
+    label: "Medium (M)",
+    badge: "M",
+    color: "bg-orange-100 text-orange-700 border-orange-300",
+    hoverColor: "hover:bg-orange-200 hover:border-orange-400",
+    selectedColor: "ring-2 ring-orange-500 bg-orange-50",
+    examples: [
+      "Single wardrobe",
+      "TV (55″+)",
+      "Office desk",
+      "2-seater sofa",
+      "Washing machine or fridge"
+    ],
+    icon: "📺"
+  },
+  {
+    value: "large" as DeliverySize,
+    label: "Large (L)",
+    badge: "L",
+    color: "bg-red-100 text-red-700 border-red-300",
+    hoverColor: "hover:bg-red-200 hover:border-red-400",
+    selectedColor: "ring-2 ring-red-500 bg-red-50",
+    examples: [
+      "3-seater sofa",
+      "Large wardrobe",
+      "Dining table (6+ seats)",
+      "King-size mattress",
+      "Multiple large items (home move)"
+    ],
+    icon: "🛋️"
+  }
 ];
 
 export default function BookMove() {
-  return (
-    <ProtectedRoute allowedRoles={["consumer"]}>
-      <BookMoveContent />
-    </ProtectedRoute>
-  );
-}
-
-function BookMoveContent() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [date, setDate] = useState<Date>();
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [isAsap, setIsAsap] = useState(false); // Track if user wants ASAP booking
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Form state
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [dropoffAddress, setDropoffAddress] = useState("");
+  const [deliverySize, setDeliverySize] = useState<DeliverySize>("medium");
+  const [itemDescription, setItemDescription] = useState("");
+  const [specialInstructions, setSpecialInstructions] = useState("");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [useAsap, setUseAsap] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
+
+  // Price calculation
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [distance, setDistance] = useState<number | null>(null);
 
-  const [formData, setFormData] = useState({
-    pickupAddress: "",
-    pickupLat: 60.1699, // Default Helsinki coordinates
-    pickupLng: 24.9384,
-    dropoffAddress: "",
-    dropoffLat: 60.1699,
-    dropoffLng: 24.9384,
-    itemType: "",
-    itemSize: "",
-    itemDescription: "",
-    scheduledFor: "",
-    notes: "",
-  });
+  // Autocomplete refs
+  const pickupInputRef = useRef<HTMLInputElement>(null);
+  const dropoffInputRef = useRef<HTMLInputElement>(null);
 
-  // Calculate price when addresses and item size change
   useEffect(() => {
-    if (
-      formData.pickupAddress &&
-      formData.dropoffAddress &&
-      formData.itemSize
-    ) {
-      const price = calculatePrice(
-        formData.pickupLat,
-        formData.pickupLng,
-        formData.dropoffLat,
-        formData.dropoffLng,
-        formData.itemSize
-      );
-      setEstimatedPrice(price);
-    }
-  }, [
-    formData.pickupLat,
-    formData.pickupLng,
-    formData.dropoffLat,
-    formData.dropoffLng,
-    formData.itemSize,
-  ]);
+    fetchUser();
+    loadGoogleMapsScript();
+  }, []);
 
-  const handleInputChange = (field: string, value: string | number) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleDateSelect = (selectedDate: Date | undefined) => {
-    if (selectedDate) {
-      setDate(selectedDate);
-      setIsAsap(false); // Clear ASAP if date selected
-      handleInputChange("scheduledFor", selectedDate.toISOString());
+  const fetchUser = async () => {
+    const session = await authService.getCurrentSession();
+    if (session?.user) {
+      setUserId(session.user.id);
     }
   };
 
-  const handleAsapSelect = () => {
-    setIsAsap(true);
-    setDate(undefined); // Clear date if ASAP selected
-    // Set scheduledFor to now + 30 minutes (reasonable prep time)
-    const asapTime = new Date();
-    asapTime.setMinutes(asapTime.getMinutes() + 30);
-    handleInputChange("scheduledFor", asapTime.toISOString());
+  const loadGoogleMapsScript = () => {
+    if (typeof window !== "undefined" && !window.google) {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = initAutocomplete;
+      document.head.appendChild(script);
+    } else if (window.google) {
+      initAutocomplete();
+    }
   };
 
-  const canProceedToStep2 = () => {
-    return formData.pickupAddress && formData.dropoffAddress;
+  const initAutocomplete = () => {
+    if (!window.google || !pickupInputRef.current || !dropoffInputRef.current) return;
+
+    const options = {
+      componentRestrictions: { country: "fi" },
+      fields: ["formatted_address", "geometry"]
+    };
+
+    new window.google.maps.places.Autocomplete(pickupInputRef.current, options);
+    new window.google.maps.places.Autocomplete(dropoffInputRef.current, options);
   };
 
-  const canProceedToStep3 = () => {
-    return formData.itemType && formData.itemSize;
-  };
+  const calculatePrice = async () => {
+    if (!pickupAddress || !dropoffAddress) {
+      setEstimatedPrice(null);
+      setDistance(null);
+      return;
+    }
 
-  const canSubmit = () => {
-    return (isAsap || formData.scheduledFor) && canProceedToStep3();
-  };
-
-  const handleSubmit = async () => {
-    if (!canSubmit()) return;
-
-    setIsSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        alert("You must be logged in to create a booking");
-        setIsSubmitting(false);
+      const pickupCoords = await geocodingService.geocodeAddress(pickupAddress);
+      const dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
+
+      if (!pickupCoords || !dropoffCoords) {
+        toast({
+          title: "Address Error",
+          description: "Could not find one or both addresses. Please check and try again.",
+          variant: "destructive"
+        });
         return;
       }
 
-      const booking = await bookingService.createBooking(user.id, formData as BookingFormData);
-      
-      if (booking && booking.success) {
-        // Success! Redirect to dashboard
-        router.push("/consumer/dashboard?booking=created");
-      } else {
-        alert(booking?.error || "Failed to create booking. Please try again.");
-      }
+      const calculatedDistance = geocodingService.calculateDistance(
+        pickupCoords.lat,
+        pickupCoords.lng,
+        dropoffCoords.lat,
+        dropoffCoords.lng
+      );
+
+      setDistance(calculatedDistance);
+
+      // Size-based pricing
+      const sizeMultipliers = {
+        small: 1.0,
+        medium: 1.5,
+        large: 2.0
+      };
+
+      const basePrice = 25 * sizeMultipliers[deliverySize];
+      const distancePrice = calculatedDistance * 2;
+      const total = basePrice + distancePrice;
+
+      setEstimatedPrice(total);
     } catch (error) {
-      console.error("Error submitting booking:", error);
-      alert("An error occurred. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      console.error("Error calculating price:", error);
+      toast({
+        title: "Calculation Error",
+        description: "Could not calculate price. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      calculatePrice();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [pickupAddress, dropoffAddress, deliverySize]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!userId) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to book a move.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!pickupAddress || !dropoffAddress || !deliverySize) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!useAsap && (!scheduledDate || !scheduledTime)) {
+      toast({
+        title: "Missing Schedule",
+        description: "Please select a date and time or choose ASAP.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const pickupCoords = await geocodingService.geocodeAddress(pickupAddress);
+      const dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
+
+      if (!pickupCoords || !dropoffCoords) {
+        toast({
+          title: "Address Error",
+          description: "Could not verify addresses. Please check and try again.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      const scheduledAt = useAsap 
+        ? new Date().toISOString()
+        : new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+
+      await bookingService.createBooking(userId, {
+        pickupAddress,
+        pickupLat: pickupCoords.lat,
+        pickupLng: pickupCoords.lng,
+        dropoffAddress,
+        dropoffLat: dropoffCoords.lat,
+        dropoffLng: dropoffCoords.lng,
+        itemSize: deliverySize,
+        itemDescription: itemDescription || undefined,
+        specialInstructions: specialInstructions || undefined,
+        scheduledFor: scheduledAt,
+        itemPhotos: photos.length > 0 ? photos : undefined
+      });
+
+      toast({
+        title: "✅ Booking Created",
+        description: useAsap ? "Your move request is now live! Transporters will be notified." : "Your move has been scheduled successfully!",
+      });
+
+      router.push("/consumer/dashboard");
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      toast({
+        title: "Booking Failed",
+        description: "Could not create booking. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMinDateTime = () => {
+    const now = new Date();
+    now.setHours(now.getHours() + 2); // Minimum 2 hours from now
+    return now.toISOString().slice(0, 16);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => router.push("/consumer/dashboard")}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          <h1 className="text-4xl font-bold mb-2">Book a Move</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Fill in the details and we'll find you a transporter
-          </p>
-        </div>
+    <ProtectedRoute allowedRoles={["consumer"]}>
+      <SEO 
+        title="Book a Move - VANGO"
+        description="Book your furniture and item delivery in Helsinki with VANGO"
+      />
+      
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/consumer/dashboard")}
+              className="mb-4"
+            >
+              ← Back to Dashboard
+            </Button>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Book a Move</h1>
+            <p className="text-gray-600">Tell us what you need moved and we'll find you a transporter</p>
+          </div>
 
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center space-x-4">
-            {[1, 2, 3].map((stepNum) => (
-              <div key={stepNum} className="flex items-center">
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center font-semibold",
-                    step >= stepNum
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-gray-500 dark:bg-gray-700"
-                  )}
-                >
-                  {stepNum}
-                </div>
-                {stepNum < 3 && (
-                  <div
-                    className={cn(
-                      "w-16 h-1 mx-2",
-                      step > stepNum ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-700"
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Delivery Size Selection */}
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Package className="h-5 w-5 text-blue-600" />
+                <h2 className="text-xl font-semibold">Delivery Size</h2>
+                <span className="text-red-500">*</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {SIZE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setDeliverySize(option.value)}
+                    className={`
+                      relative p-6 rounded-lg border-2 transition-all text-left
+                      ${deliverySize === option.value 
+                        ? `${option.selectedColor} border-current` 
+                        : `${option.color} border-current ${option.hoverColor}`
+                      }
+                    `}
+                  >
+                    {/* Size Badge */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-4xl">{option.icon}</span>
+                      <div className={`
+                        px-3 py-1 rounded-full font-bold text-lg
+                        ${deliverySize === option.value ? "bg-white shadow-md" : "bg-white/50"}
+                      `}>
+                        {option.badge}
+                      </div>
+                    </div>
+
+                    {/* Label */}
+                    <h3 className="font-bold text-lg mb-3">{option.label}</h3>
+
+                    {/* Examples */}
+                    <ul className="space-y-1.5 text-sm">
+                      {option.examples.map((example, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <span>{example}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* Selected Indicator */}
+                    {deliverySize === option.value && (
+                      <div className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-lg">
+                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                      </div>
                     )}
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            {/* Item Description (Optional) */}
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <h2 className="text-xl font-semibold">Item Description</h2>
+                <span className="text-gray-400 text-sm">(Optional)</span>
+              </div>
+              <Label htmlFor="itemDescription" className="text-sm text-gray-600 mb-2 block">
+                Describe what you're moving (e.g., "2 dining chairs + small coffee table")
+              </Label>
+              <Input
+                id="itemDescription"
+                value={itemDescription}
+                onChange={(e) => setItemDescription(e.target.value)}
+                placeholder="e.g., IKEA sofa, 3-seater, light grey"
+                className="w-full"
+                maxLength={200}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {itemDescription.length}/200 characters
+              </p>
+            </Card>
+
+            {/* Addresses */}
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin className="h-5 w-5 text-blue-600" />
+                <h2 className="text-xl font-semibold">Pickup & Dropoff</h2>
+                <span className="text-red-500">*</span>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="pickup">Pickup Address</Label>
+                  <Input
+                    ref={pickupInputRef}
+                    id="pickup"
+                    value={pickupAddress}
+                    onChange={(e) => setPickupAddress(e.target.value)}
+                    placeholder="Enter pickup address in Helsinki"
+                    required
                   />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-center space-x-8 mt-2">
-            <span className={cn("text-sm", step >= 1 ? "font-semibold" : "text-gray-500")}>
-              Addresses
-            </span>
-            <span className={cn("text-sm", step >= 2 ? "font-semibold" : "text-gray-500")}>
-              Item Details
-            </span>
-            <span className={cn("text-sm", step >= 3 ? "font-semibold" : "text-gray-500")}>
-              Schedule
-            </span>
-          </div>
-        </div>
+                </div>
 
-        {/* Step 1: Addresses */}
-        {step === 1 && (
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Pick-up and Drop-off Locations
-              </CardTitle>
-              <CardDescription>Enter the addresses for your move</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="pickupAddress">Pick-up Address</Label>
-                <Input
-                  id="pickupAddress"
-                  placeholder="e.g., Mannerheimintie 1, Helsinki"
-                  value={formData.pickupAddress}
-                  onChange={(e) => handleInputChange("pickupAddress", e.target.value)}
-                />
-                <p className="text-sm text-gray-500">
-                  Tip: Include apartment number if applicable
-                </p>
+                <div>
+                  <Label htmlFor="dropoff">Dropoff Address</Label>
+                  <Input
+                    ref={dropoffInputRef}
+                    id="dropoff"
+                    value={dropoffAddress}
+                    onChange={(e) => setDropoffAddress(e.target.value)}
+                    placeholder="Enter dropoff address in Helsinki"
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="dropoffAddress">Drop-off Address</Label>
-                <Input
-                  id="dropoffAddress"
-                  placeholder="e.g., Esplanadi 10, Helsinki"
-                  value={formData.dropoffAddress}
-                  onChange={(e) => handleInputChange("dropoffAddress", e.target.value)}
-                />
+              {/* Distance & Price Estimate */}
+              {distance !== null && estimatedPrice !== null && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Distance</p>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {distance.toFixed(1)} km
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">Estimated Price</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        €{estimatedPrice.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Schedule */}
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-blue-600" />
+                <h2 className="text-xl font-semibold">When do you need this?</h2>
+                <span className="text-red-500">*</span>
               </div>
 
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => setStep(2)}
-                  disabled={!canProceedToStep2()}
+              {/* ASAP Toggle */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => setUseAsap(!useAsap)}
+                  className={`
+                    w-full p-4 rounded-lg border-2 transition-all text-left
+                    ${useAsap 
+                      ? "bg-orange-50 border-orange-500 ring-2 ring-orange-500" 
+                      : "bg-white border-gray-300 hover:border-orange-300"
+                    }
+                  `}
                 >
-                  Next: Item Details
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 2: Item Details */}
-        {step === 2 && (
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Item Details
-              </CardTitle>
-              <CardDescription>Tell us what you're moving</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="itemType">Item Type</Label>
-                <Select
-                  value={formData.itemType}
-                  onValueChange={(value) => handleInputChange("itemType", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select item type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ITEM_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{type.label}</span>
-                          <span className="text-xs text-gray-500">{type.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`
+                        w-6 h-6 rounded-full border-2 flex items-center justify-center
+                        ${useAsap ? "border-orange-500 bg-orange-500" : "border-gray-400"}
+                      `}>
+                        {useAsap && <CheckCircle2 className="h-4 w-4 text-white" />}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">ASAP - As Soon As Possible</p>
+                        <p className="text-sm text-gray-600">Get matched with an available driver immediately</p>
+                      </div>
+                    </div>
+                    {useAsap && (
+                      <span className="px-3 py-1 bg-orange-500 text-white text-sm font-semibold rounded-full">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                </button>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="itemSize">Item Size</Label>
-                <Select
-                  value={formData.itemSize}
-                  onValueChange={(value) => handleInputChange("itemSize", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select item size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ITEM_SIZES.map((size) => (
-                      <SelectItem key={size.value} value={size.value}>
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{size.label}</span>
-                            <span className="text-xs text-gray-500">{size.description}</span>
-                          </div>
-                          <span className="ml-4 text-sm text-blue-600 font-semibold">{size.price}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-gray-500">
-                  Size multiplier affects the final price
-                </p>
-              </div>
+              {/* Date/Time Pickers (disabled if ASAP) */}
+              {!useAsap && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="date">Date</Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      min={new Date().toISOString().split("T")[0]}
+                      required={!useAsap}
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="itemDescription">Special Instructions (Optional)</Label>
-                <Textarea
-                  id="itemDescription"
-                  placeholder="e.g., Door code 1234, 3rd floor no elevator"
-                  value={formData.itemDescription}
-                  onChange={(e) => handleInputChange("itemDescription", e.target.value)}
-                  rows={3}
-                />
-              </div>
-
-              {estimatedPrice && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    Estimated Price
-                  </p>
-                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    €{estimatedPrice.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Includes base fare + distance
-                  </p>
+                  <div>
+                    <Label htmlFor="time">Time</Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      required={!useAsap}
+                    />
+                  </div>
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(1)}>
-                  Back
-                </Button>
-                <Button
-                  onClick={() => setStep(3)}
-                  disabled={!canProceedToStep3()}
-                >
-                  Next: Schedule
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              {!useAsap && (
+                <p className="text-sm text-gray-500 mt-2">
+                  📅 Schedule at least 2 hours in advance
+                </p>
+              )}
+            </Card>
 
-        {/* Step 3: Schedule */}
-        {step === 3 && (
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5" />
-                Schedule Your Move
-              </CardTitle>
-              <CardDescription>Choose when you'd like your items moved</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label>When do you need this move?</Label>
-                
-                {/* ASAP Option */}
-                <Button
-                  type="button"
-                  variant={isAsap ? "default" : "outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal mb-2",
-                    isAsap && "bg-blue-600 text-white"
-                  )}
-                  onClick={handleAsapSelect}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  🚀 ASAP (Ready in ~30 minutes)
-                </Button>
-
-                {/* Schedule for Later */}
-                <div className="space-y-2">
-                  <Label className="text-sm text-gray-500">Or schedule for later:</Label>
-                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !date && !isAsap && "text-muted-foreground",
-                          date && "border-blue-500"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : "Pick a specific date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(newDate) => {
-                          if (newDate) {
-                            handleDateSelect(newDate);
-                            setIsCalendarOpen(false);
-                          }
-                        }}
-                        disabled={(date) => date < new Date()}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+            {/* Special Instructions */}
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <h2 className="text-xl font-semibold">Special Instructions</h2>
+                <span className="text-gray-400 text-sm">(Optional)</span>
               </div>
+              <Textarea
+                value={specialInstructions}
+                onChange={(e) => setSpecialInstructions(e.target.value)}
+                placeholder="E.g., Use service elevator, Call when you arrive, Fragile - handle with care"
+                rows={4}
+              />
+            </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="notes">Additional Notes (Optional)</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="e.g., Please call when arriving, parking available"
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange("notes", e.target.value)}
-                  rows={3}
-                />
-              </div>
-
-              {/* Summary */}
-              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Booking Summary
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Pick-up:</span>
-                    <span className="font-medium">{formData.pickupAddress}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Drop-off:</span>
-                    <span className="font-medium">{formData.dropoffAddress}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Item:</span>
-                    <span className="font-medium">
-                      {ITEM_TYPES.find((t) => t.value === formData.itemType)?.label} ({ITEM_SIZES.find((s) => s.value === formData.itemSize)?.label})
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Scheduled:</span>
-                    <span className="font-medium">
-                      {isAsap ? "🚀 ASAP (Ready in ~30 min)" : date ? format(date, "PPP") : "Not set"}
-                    </span>
-                  </div>
-                  {estimatedPrice && (
-                    <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <span className="font-semibold">Estimated Price:</span>
-                      <span className="font-bold text-blue-600 dark:text-blue-400">
-                        €{estimatedPrice.toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(2)}>
-                  Back
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit() || isSubmitting}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {isSubmitting ? (
-                    "Creating Booking..."
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Confirm Booking
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              size="lg"
+              disabled={loading || !pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))}
+              className="w-full bg-gradient-to-r from-blue-600 to-orange-600 hover:from-blue-700 hover:to-orange-700 text-white font-semibold text-lg py-6"
+            >
+              {loading ? (
+                "Creating Booking..."
+              ) : useAsap ? (
+                "🚀 Request ASAP Pickup"
+              ) : (
+                `📅 Schedule Move ${estimatedPrice ? `- €${estimatedPrice.toFixed(2)}` : ""}`
+              )}
+            </Button>
+          </form>
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }

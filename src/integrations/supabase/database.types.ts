@@ -32,9 +32,10 @@ export type Database = {
           dropoff_lng: number
           extras_price: number | null
           id: string
+          item_description: string | null
           item_photos: string[] | null
           item_size: Database["public"]["Enums"]["item_size"]
-          item_type: Database["public"]["Enums"]["item_type"]
+          item_type: Database["public"]["Enums"]["item_type"] | null
           pickup_address: string
           pickup_lat: number
           pickup_lng: number
@@ -65,9 +66,10 @@ export type Database = {
           dropoff_lng: number
           extras_price?: number | null
           id?: string
+          item_description?: string | null
           item_photos?: string[] | null
           item_size: Database["public"]["Enums"]["item_size"]
-          item_type: Database["public"]["Enums"]["item_type"]
+          item_type?: Database["public"]["Enums"]["item_type"] | null
           pickup_address: string
           pickup_lat: number
           pickup_lng: number
@@ -98,9 +100,10 @@ export type Database = {
           dropoff_lng?: number
           extras_price?: number | null
           id?: string
+          item_description?: string | null
           item_photos?: string[] | null
           item_size?: Database["public"]["Enums"]["item_size"]
-          item_type?: Database["public"]["Enums"]["item_type"]
+          item_type?: Database["public"]["Enums"]["item_type"] | null
           pickup_address?: string
           pickup_lat?: number
           pickup_lng?: number

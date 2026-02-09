@@ -105,5 +105,14 @@ export const profileService = {
     }
 
     return true;
+  },
+
+  async updateOnlineStatus(userId: string, isOnline: boolean) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_online: isOnline } as any) // Type assertion until DB types are fully regenerated
+      .eq("id", userId);
+    
+    return !error;
   }
 };
