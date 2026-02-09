@@ -437,14 +437,14 @@ export const bookingService = {
     }
   },
 
-  async updateStatus(bookingId: string, status: string) {
+  async updateStatus(bookingId: string, status: BookingStatus) {
     const { data, error } = await supabase
       .from("bookings")
       .update({ status })
       .eq("id", bookingId)
       .select(`
         *,
-        transporter:transporter_id(full_name)
+        transporter:profiles!transporter_id(full_name)
       `)
       .single();
 
