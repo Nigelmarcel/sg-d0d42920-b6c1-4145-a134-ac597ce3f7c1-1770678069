@@ -13,6 +13,10 @@ import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { User, Mail, Phone, Calendar, Package, DollarSign, Star, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard, Save, ArrowLeft, Home, LogOut } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { updateProfile } from "@/services/profileService";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Application = Database["public"]["Tables"]["transporter_applications"]["Row"];
@@ -33,8 +37,12 @@ const STATUS_CONFIG = {
 
 export default function TransporterProfile() {
   const router = useRouter();
+  const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [application, setApplication] = useState<Application | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
   const [bookings, setBookings] = useState<BookingWithConsumer[]>([]);
   const [stats, setStats] = useState({
     totalJobs: 0,
@@ -71,18 +79,21 @@ export default function TransporterProfile() {
         .single();
 
       if (profileError) throw profileError;
-      setProfile(profileData);
+      if (profileData) {
+        setProfile(profileData);
+        setIsOnline(profileData.is_online || false);
+      }
       setFormData({
         full_name: profileData.full_name || "",
         phone: profileData.phone || "",
       });
 
       // Load application details
-      const { data: appData } = await supabase
+      const { data: appData, error: appError } = await supabase
         .from("transporter_applications")
         .select("*")
         .eq("user_id", session.user.id)
-        .single();
+        .maybeSingle();
 
       setApplication(appData);
 
@@ -170,6 +181,85 @@ export default function TransporterProfile() {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update your profile",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await updateProfile(session.user.id, {
+        full_name: formData.full_name || null,
+        phone: formData.phone || null,
+      });
+
+      // Update local profile state
+      if (profile) {
+        setProfile({ ...profile, full_name: formData.full_name, phone: formData.phone });
+      }
+
+      toast({
+        title: "✅ Profile Updated",
+        description: "Your profile has been successfully updated",
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOnlineToggle = async (checked: boolean) => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to change your status",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsOnline(checked);
+      
+      await updateProfile(session.user.id, {
+        is_online: checked,
+      });
+
+      toast({
+        title: checked ? "🟢 You're Online" : "⚫ You're Offline",
+        description: checked 
+          ? "You will now receive booking requests" 
+          : "You won't receive new booking requests",
+      });
+    } catch (error) {
+      console.error("Error updating online status:", error);
+      setIsOnline(!checked); // Revert on error
+      toast({
+        title: "Error",
+        description: "Failed to update status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <ProtectedRoute allowedRoles={["transporter"]}>
@@ -189,18 +279,52 @@ export default function TransporterProfile() {
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <Button 
-              variant="outline" 
-              onClick={() => router.push("/transporter/dashboard")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-navy-900">Profile Settings</h1>
+              <p className="text-gray-600 mt-2">Manage your personal information and vehicle details</p>
+            </div>
+            <Badge variant={application?.status === "approved" ? "default" : "secondary"}>
+              {application?.status === "approved" ? "✓ Verified Transporter" : "Pending Verification"}
+            </Badge>
           </div>
+
+          {/* Online/Offline Status Toggle */}
+          <Card className="mb-6 border-2 border-navy-100">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    {isOnline ? (
+                      <>
+                        <span className="flex h-3 w-3 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                        You're Online
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex h-3 w-3 relative">
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-gray-400"></span>
+                        </span>
+                        You're Offline
+                      </>
+                    )}
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    {isOnline 
+                      ? "You will receive booking requests from customers" 
+                      : "You won't receive new booking requests"}
+                  </CardDescription>
+                </div>
+                <Switch
+                  checked={isOnline}
+                  onCheckedChange={handleOnlineToggle}
+                  className="data-[state=checked]:bg-green-500"
+                />
+              </div>
+            </CardHeader>
+          </Card>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
