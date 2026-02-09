@@ -189,6 +189,8 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          message_type: string | null
+          photo_url: string | null
           read_at: string | null
           sender_id: string
         }
@@ -197,6 +199,8 @@ export type Database = {
           content: string
           created_at?: string | null
           id?: string
+          message_type?: string | null
+          photo_url?: string | null
           read_at?: string | null
           sender_id: string
         }
@@ -205,6 +209,8 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          message_type?: string | null
+          photo_url?: string | null
           read_at?: string | null
           sender_id?: string
         }
