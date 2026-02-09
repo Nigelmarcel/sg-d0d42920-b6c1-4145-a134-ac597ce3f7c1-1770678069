@@ -44,9 +44,19 @@ export function LocationTracker({
     if (isActive && !isTracking) {
       startTracking();
     } else if (!isActive && isTracking) {
+      // Auto-stop tracking when job becomes inactive (delivered/cancelled)
       stopTracking();
     }
   }, [isActive]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (trackingInterval) {
+        locationService.stopContinuousTracking(trackingInterval);
+      }
+    };
+  }, [trackingInterval]);
 
   const startTracking = async () => {
     // Request location permission
@@ -183,7 +193,7 @@ export function LocationTracker({
         <p className="text-xs text-gray-500 dark:text-gray-400">
           {isActive
             ? "Your location will be shared with the customer in real-time during the delivery."
-            : "Location sharing will start automatically when you begin the delivery."}
+            : "Location tracking has been stopped automatically because this delivery is complete."}
         </p>
       </CardContent>
     </Card>

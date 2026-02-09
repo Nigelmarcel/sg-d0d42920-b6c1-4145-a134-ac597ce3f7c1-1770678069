@@ -230,6 +230,15 @@ function TransporterDashboardContent() {
         title: "Status Updated",
         description: `Status updated to: ${STATUS_CONFIG[newStatus].label}`,
       });
+      
+      // Show special message when delivery is completed
+      if (newStatus === "delivered") {
+        toast({
+          title: "🎉 Delivery Complete!",
+          description: "Location tracking has been stopped automatically. Great job!",
+        });
+      }
+      
       await fetchJobs();
     } else {
       toast({
@@ -510,6 +519,10 @@ function TransporterDashboardContent() {
                 {myJobs.map((job) => {
                   const nextStatus = getNextStatus(job.status);
                   const isActive = job.status !== "delivered" && job.status !== "cancelled";
+                  const isTrackingActive = 
+                    job.status === "en_route_pickup" || 
+                    job.status === "picked_up" || 
+                    job.status === "en_route_dropoff";
 
                   return (
                     <Card key={job.id} className="border-l-4 border-l-blue-500">
@@ -577,19 +590,12 @@ function TransporterDashboardContent() {
                         </div>
 
                         {/* Location Tracker for active jobs */}
-                        {(job.status === "accepted" || 
-                          job.status === "en_route_pickup" || 
-                          job.status === "picked_up" || 
-                          job.status === "en_route_dropoff") && userId && (
+                        {(job.status === "accepted" || isTrackingActive) && userId && (
                           <div className="mt-4 space-y-4">
                             <LocationTracker
                               bookingId={job.id}
                               transporterId={userId}
-                              isActive={
-                                job.status === "en_route_pickup" || 
-                                job.status === "picked_up" || 
-                                job.status === "en_route_dropoff"
-                              }
+                              isActive={isTrackingActive}
                             />
                             <TrackingMap booking={job} userRole="transporter" />
                           </div>
