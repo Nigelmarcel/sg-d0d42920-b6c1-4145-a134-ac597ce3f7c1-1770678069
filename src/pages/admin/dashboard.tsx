@@ -15,8 +15,8 @@ import type { Database } from "@/integrations/supabase/types";
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type TransporterApplication = Database["public"]["Tables"]["transporter_applications"]["Row"];
 type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
-  consumer?: Profile;
-  transporter?: Profile;
+  consumer?: { id: string; full_name: string | null; email: string | null } | null;
+  transporter?: { id: string; full_name: string | null; email: string | null } | null;
 };
 
 export default function AdminDashboard() {
