@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home, LogOut } from "lucide-react";
+import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home, LogOut, TruckIcon } from "lucide-react";
 import { format } from "date-fns";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -22,8 +22,8 @@ type BookingWithTransporter = Database["public"]["Tables"]["bookings"]["Row"] & 
 
 const STATUS_CONFIG = {
   pending: { label: "Pending", color: "bg-yellow-500", icon: Clock },
-  accepted: { label: "Accepted", color: "bg-blue-500", icon: Package },
-  en_route_pickup: { label: "En Route to Pickup", color: "bg-indigo-500", icon: ArrowRight },
+  accepted: { label: "Accepted", color: "bg-navy-900 text-white", icon: Package },
+  en_route_pickup: { label: "En Route to Pickup", color: "bg-navy-900/80 text-white", icon: ArrowRight },
   picked_up: { label: "Picked Up", color: "bg-purple-500", icon: Package },
   en_route_dropoff: { label: "En Route to Dropoff", color: "bg-cyan-500", icon: ArrowRight },
   delivered: { label: "Delivered", color: "bg-green-500", icon: Package },

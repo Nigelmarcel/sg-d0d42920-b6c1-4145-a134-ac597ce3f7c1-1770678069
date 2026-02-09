@@ -222,3 +222,40 @@ class PhotoService {
 }
 
 export const photoService = new PhotoService();
+
+export async function uploadChatPhoto(
+  bookingId: string,
+  file: File
+): Promise<string> {
+  try {
+    // Generate unique filename with timestamp
+    const timestamp = Date.now();
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${timestamp}.${fileExt}`;
+    
+    // Upload path: booking_id/timestamp.ext (matches RLS policy)
+    const filePath = `${bookingId}/${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from("chat-photos")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Upload error:", error);
+      throw error;
+    }
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("chat-photos").getPublicUrl(filePath);
+
+    return publicUrl;
+  } catch (error) {
+    console.error("Error uploading photo:", error);
+    throw error;
+  }
+}

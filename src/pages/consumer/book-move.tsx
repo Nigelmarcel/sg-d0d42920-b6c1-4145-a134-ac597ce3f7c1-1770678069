@@ -20,9 +20,9 @@ const SIZE_OPTIONS = [
     value: "small" as DeliverySize,
     label: "Small (S)",
     badge: "S",
-    color: "bg-blue-100 text-blue-700 border-blue-300",
-    hoverColor: "hover:bg-blue-200 hover:border-blue-400",
-    selectedColor: "ring-2 ring-blue-500 bg-blue-50",
+    color: "bg-navy-900/10 text-navy-900 border-navy-900/20",
+    hoverColor: "hover:bg-navy-900/20 hover:border-navy-900/30",
+    selectedColor: "ring-2 ring-navy-900 bg-navy-900/5",
     examples: [
       "Chair or small table",
       "TV (<55″)",
@@ -413,21 +413,11 @@ export default function BookMove() {
 
               {/* Distance & Price Estimate */}
               {distance !== null && estimatedPrice !== null && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Distance</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {distance.toFixed(1)} km
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">Estimated Price</p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        €{estimatedPrice.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
+                <div className="mt-4 p-4 bg-navy-900/5 rounded-lg border border-navy-900/20">
+                  <p className="text-sm text-muted-foreground">
+                    💡 Tip: Select the closest match. You can add more details
+                    in the notes.
+                  </p>
                 </div>
               )}
             </Card>

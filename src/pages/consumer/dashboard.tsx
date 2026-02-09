@@ -197,17 +197,21 @@ export default function ConsumerDashboard() {
 
   const getSizeBadge = (size: string) => {
     const badges = {
-      small: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-      medium: "bg-orange-100 text-orange-700 hover:bg-orange-100",
-      large: "bg-red-100 text-red-700 hover:bg-red-100",
+      small: "bg-navy-900/10 text-navy-900 hover:bg-navy-900/20",
+      medium: "bg-gold-500/10 text-gold-600 hover:bg-gold-500/20",
+      large: "bg-copper-500/10 text-copper-600 hover:bg-copper-500/20",
     };
     return badges[size as keyof typeof badges] || badges.small;
   };
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      pending: "bg-yellow-100 text-yellow-700",
-      accepted: "bg-blue-100 text-blue-700",
+      pending: { label: "Pending", color: "bg-gold-500/10 text-gold-700" },
+      accepted: "bg-navy-900/10 text-navy-900",
+      pickup_en_route: {
+        label: "En Route to Pickup",
+        color: "bg-navy-900/10 text-navy-900",
+      },
       in_transit: "bg-purple-100 text-purple-700",
       delivered: "bg-green-100 text-green-700",
       cancelled: "bg-gray-100 text-gray-700",
@@ -265,9 +269,6 @@ export default function ConsumerDashboard() {
   };
 
   const handleLogout = async () => {
-    const confirmed = window.confirm("Are you sure you want to log out?");
-    if (!confirmed) return;
-
     try {
       await authService.signOut();
       toast({
@@ -298,10 +299,10 @@ export default function ConsumerDashboard() {
   if (!profile) {
     return (
       <ProtectedRoute allowedRoles={["consumer"]}>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading dashboard...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
           </div>
         </div>
       </ProtectedRoute>
@@ -333,7 +334,7 @@ export default function ConsumerDashboard() {
                 >
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
-                    <AvatarFallback className="bg-primary text-primary-foreground">
+                    <AvatarFallback className="bg-navy-900 text-white">
                       {getInitials(profile.full_name || "User")}
                     </AvatarFallback>
                   </Avatar>
@@ -352,14 +353,14 @@ export default function ConsumerDashboard() {
                       <div className="flex items-center gap-3">
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
-                          <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+                          <AvatarFallback className="bg-navy-900 text-white text-lg">
                             {getInitials(profile.full_name || "User")}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <p className="text-sm font-semibold text-foreground">{profile.full_name}</p>
                           <p className="text-xs text-muted-foreground">{profile.email}</p>
-                          <Badge className="mt-1 bg-primary/10 text-primary hover:bg-primary/20">
+                          <Badge className="mt-1 bg-navy-900/10 text-navy-900">
                             Consumer
                           </Badge>
                         </div>
@@ -441,12 +442,11 @@ export default function ConsumerDashboard() {
           {/* Quick Action Button */}
           <div className="mb-6">
             <Button
-              onClick={() => router.push("/consumer/book-move")}
-              size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-premium hover:shadow-elevated transition-all"
+              onClick={() => router.push('/consumer/book-move')}
+              className="bg-navy-900 hover:bg-navy-950 w-full"
             >
-              <Plus className="h-5 w-5 mr-2" />
-              Book New Move
+              <Plus className="w-5 h-5 mr-2" />
+              Book Move
             </Button>
           </div>
 
@@ -539,23 +539,23 @@ export default function ConsumerDashboard() {
           {/* Bookings List */}
           {loading ? (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading bookings...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Loading bookings...</p>
             </div>
           ) : filteredBookings.length === 0 ? (
             <Card className="p-12 text-center">
-              <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">
                 {activeFilter === "all" ? "No bookings yet" : `No ${getStatusLabel(activeFilter).toLowerCase()} bookings`}
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-muted-foreground mb-6">
                 {activeFilter === "all" 
                   ? "Book your first move to get started!"
                   : "Try selecting a different filter or booking a new move."}
               </p>
               <Button
                 onClick={() => router.push("/consumer/book-move")}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-navy-900 hover:bg-navy-950"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Book Your First Move
@@ -579,13 +579,13 @@ export default function ConsumerDashboard() {
                           <div className="flex items-center gap-2 mb-2">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                               booking.status === "pending" 
-                                ? "bg-accent/10 text-accent border border-accent/20" 
+                                ? "bg-gold-500/10 text-gold-700 border border-gold-500/20" 
                                 : booking.status === "accepted" 
-                                ? "bg-primary/10 text-primary border border-primary/20"
+                                ? "bg-navy-900/10 text-navy-900 border border-navy-900/20"
                                 : ["picked_up", "en_route_pickup", "en_route_dropoff"].includes(booking.status)
-                                ? "bg-primary/20 text-primary border border-primary/30"
+                                ? "bg-navy-900/20 text-navy-900 border border-navy-900/30"
                                 : booking.status === "delivered"
-                                ? "bg-secondary/10 text-secondary border border-secondary/20"
+                                ? "bg-navy-900/10 text-navy-900 border border-navy-900/20"
                                 : "bg-destructive/10 text-destructive border border-destructive/20"
                             }`}>
                               {booking.status === "pending" && <Clock className="h-3 w-3 mr-1" />}
@@ -607,8 +607,8 @@ export default function ConsumerDashboard() {
 
                       {/* Item Description */}
                       {booking.item_description && (
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-sm text-gray-700">
+                        <div className="bg-muted/50 rounded-lg p-3">
+                          <p className="text-sm text-foreground">
                             <span className="font-medium">Item:</span> {booking.item_description}
                           </p>
                         </div>
@@ -617,23 +617,23 @@ export default function ConsumerDashboard() {
                       {/* Addresses */}
                       <div className="space-y-2">
                         <div className="flex items-start gap-2">
-                          <MapPin className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <MapPin className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-xs text-gray-500">Pickup</p>
-                            <p className="text-sm font-medium text-gray-900">{booking.pickup_address}</p>
+                            <p className="text-xs text-muted-foreground">Pickup</p>
+                            <p className="text-sm font-medium text-foreground">{booking.pickup_address}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
-                          <MapPin className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <MapPin className="h-5 w-5 text-gold-600 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-xs text-gray-500">Dropoff</p>
-                            <p className="text-sm font-medium text-gray-900">{booking.dropoff_address}</p>
+                            <p className="text-xs text-muted-foreground">Dropoff</p>
+                            <p className="text-sm font-medium text-foreground">{booking.dropoff_address}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* Schedule & Distance */}
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
                           <span>
@@ -655,16 +655,16 @@ export default function ConsumerDashboard() {
 
                       {/* Transporter Info (if assigned) */}
                       {booking.transporter_id && (
-                        <div className="bg-blue-50 rounded-lg p-3 flex items-center gap-3">
+                        <div className="bg-navy-900/5 rounded-lg p-3 flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarFallback className="bg-blue-600 text-white">
+                            <AvatarFallback className="bg-navy-900 text-white">
                               T
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">Transporter Assigned</p>
-                            <div className="flex items-center gap-1 text-xs text-gray-600">
-                              <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                            <p className="text-sm font-medium text-foreground">Transporter Assigned</p>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Star className="h-3 w-3 text-gold fill-gold" />
                               <span>4.8 rating</span>
                             </div>
                           </div>
@@ -679,7 +679,7 @@ export default function ConsumerDashboard() {
                         <>
                           <Button
                             onClick={() => router.push(`/consumer/dashboard?tracking=${booking.id}`)}
-                            className="bg-blue-600 hover:bg-blue-700 w-full"
+                            className="bg-navy-900 hover:bg-navy-950 w-full"
                           >
                             <Navigation className="h-4 w-4 mr-2" />
                             Track Live

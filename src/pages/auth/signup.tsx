@@ -163,8 +163,10 @@ export default function SignUp() {
               onClick={() => setRole("transporter")}
             >
               <CardHeader className="text-center">
-                <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <Truck className="w-8 h-8 text-green-600" />
+                <div className="text-center">
+                  <div className="mx-auto mb-4 w-16 h-16 bg-navy-900/10 rounded-full flex items-center justify-center">
+                    <Truck className="w-8 h-8 text-navy-900" />
+                  </div>
                 </div>
                 <CardTitle>I Have a Van</CardTitle>
                 <CardDescription>

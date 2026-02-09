@@ -23,8 +23,8 @@ type BookingWithConsumer = Database["public"]["Tables"]["bookings"]["Row"] & {
 
 const STATUS_CONFIG = {
   pending: { label: "Pending", color: "bg-yellow-500", icon: Clock },
-  accepted: { label: "Accepted", color: "bg-blue-500", icon: Package },
-  en_route_pickup: { label: "En Route to Pickup", color: "bg-indigo-500", icon: ArrowRight },
+  accepted: { label: "Accepted", color: "bg-navy-900 text-white", icon: Package },
+  en_route_pickup: { label: "En Route to Pickup", color: "bg-navy-900/80 text-white", icon: ArrowRight },
   picked_up: { label: "Picked Up", color: "bg-purple-500", icon: Package },
   en_route_dropoff: { label: "En Route to Dropoff", color: "bg-cyan-500", icon: ArrowRight },
   delivered: { label: "Delivered", color: "bg-green-500", icon: Package },

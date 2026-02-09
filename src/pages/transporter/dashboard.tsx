@@ -282,9 +282,9 @@ export default function TransporterDashboard() {
   if (!userId || !userName) {
     return (
       <ProtectedRoute allowedRoles={["transporter"]}>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
           </div>
         </div>
       </ProtectedRoute>
@@ -307,24 +307,25 @@ export default function TransporterDashboard() {
   };
 
   const getSizeBadge = (size: string) => {
-    const colors = {
-      small: "bg-blue-100 text-blue-700",
-      medium: "bg-orange-100 text-orange-700",
-      large: "bg-red-100 text-red-700"
+    const badges = {
+      small: "bg-navy-900/10 text-navy-900",
+      medium: "bg-gold-500/10 text-gold-600",
+      large: "bg-copper-500/10 text-copper-600",
     };
-    return colors[size as keyof typeof colors] || colors.small;
+    return badges[size as keyof typeof badges] || badges.small;
   };
 
   const getStatusBadge = (status: string) => {
-    const statusMap = {
-      accepted: { label: "Accepted", color: "bg-blue-100 text-blue-700" },
-      en_route_pickup: { label: "En Route to Pickup", color: "bg-purple-100 text-purple-700" },
-      picked_up: { label: "Picked Up", color: "bg-indigo-100 text-indigo-700" },
-      en_route_dropoff: { label: "En Route to Dropoff", color: "bg-orange-100 text-orange-700" },
-      delivered: { label: "Delivered", color: "bg-green-100 text-green-700" }
+    const badges = {
+      pending: { label: "Available", color: "bg-gold-500/10 text-gold-700" },
+      accepted: { label: "Accepted", color: "bg-navy-900/10 text-navy-900" },
+      pickup_en_route: {
+        label: "En Route",
+        color: "bg-navy-900/10 text-navy-900",
+      },
     };
     
-    const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, color: "bg-gray-100 text-gray-700" };
+    const statusInfo = badges[status as keyof typeof badges] || { label: status, color: "bg-gray-100 text-gray-700" };
     return <Badge className={statusInfo.color}>{statusInfo.label}</Badge>;
   };
 
@@ -501,10 +502,10 @@ export default function TransporterDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
     );
