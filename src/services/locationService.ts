@@ -41,8 +41,8 @@ export const locationService = {
       const locationData: LocationInsert = {
         booking_id: bookingId,
         transporter_id: transporterId,
-        latitude,
-        longitude,
+        lat: latitude,
+        lng: longitude,
       };
 
       const { data, error } = await supabase

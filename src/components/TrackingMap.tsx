@@ -51,24 +51,34 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
       const location = await locationService.getLatestLocation(booking.id);
       if (location) {
         setTransporterLocation({
-          lat: location.latitude,
-          lng: location.longitude,
+          lat: location.lat,
+          lng: location.lng,
         });
       }
     };
 
-    if (booking.status === "in_transit" || booking.status === "accepted") {
+    if (
+      booking.status === "en_route_pickup" || 
+      booking.status === "picked_up" || 
+      booking.status === "en_route_dropoff" || 
+      booking.status === "accepted"
+    ) {
       fetchLocation();
     }
   }, [booking.id, booking.status]);
 
   // Subscribe to real-time location updates
   useEffect(() => {
-    if (booking.status === "in_transit" || booking.status === "accepted") {
+    if (
+      booking.status === "en_route_pickup" || 
+      booking.status === "picked_up" || 
+      booking.status === "en_route_dropoff" || 
+      booking.status === "accepted"
+    ) {
       const channel = locationService.subscribeToLocation(booking.id, (location) => {
         setTransporterLocation({
-          lat: location.latitude,
-          lng: location.longitude,
+          lat: location.lat,
+          lng: location.lng,
         });
       });
 
@@ -80,7 +90,13 @@ export function TrackingMap({ booking, userRole }: TrackingMapProps) {
 
   // Calculate route and directions
   useEffect(() => {
-    if (map && transporterLocation && booking.status === "in_transit") {
+    if (
+      map && 
+      transporterLocation && 
+      (booking.status === "en_route_pickup" || 
+       booking.status === "picked_up" || 
+       booking.status === "en_route_dropoff")
+    ) {
       const directionsService = new google.maps.DirectionsService();
 
       directionsService.route(
