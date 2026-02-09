@@ -59,7 +59,7 @@ export default function ConsumerDashboard() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const { data: { session } } = await authService.getSession();
+        const session = await authService.getSession();
         if (!session) {
           router.push("/auth/login");
           return;
@@ -93,12 +93,12 @@ export default function ConsumerDashboard() {
 
   // Fetch bookings and stats
   useEffect(() => {
-    if (!userId) return;
+    if (!profile?.id) return;
 
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const bookings = await bookingService.getConsumerBookings(userId);
+        const bookings = await bookingService.getConsumerBookings(profile.id);
         setAllBookings(bookings);
         setFilteredBookings(bookings);
 
@@ -126,7 +126,7 @@ export default function ConsumerDashboard() {
     };
 
     fetchBookings();
-  }, [userId, toast]);
+  }, [profile, toast]);
 
   // Filter bookings by status
   useEffect(() => {

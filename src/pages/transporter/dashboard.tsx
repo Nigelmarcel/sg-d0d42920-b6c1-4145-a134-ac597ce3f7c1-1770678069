@@ -54,7 +54,47 @@ export default function TransporterDashboard() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    checkAuth();
+    const fetchProfile = async () => {
+      try {
+        const session = await authService.getSession();
+        if (!session) {
+          router.push("/auth/login");
+          return;
+        }
+
+        const userProfile = await profileService.getProfile(session.user.id);
+        
+        if (!userProfile) {
+          return (
+            <ProtectedRoute allowedRoles={["transporter"]}>
+              <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                </div>
+              </div>
+            </ProtectedRoute>
+          );
+        }
+
+        if (userProfile.role !== "transporter") {
+          router.push("/unauthorized");
+          return;
+        }
+
+        setUserId(session.user.id);
+        setUserName(userProfile.full_name || "Driver");
+        setUserEmail(session.user.email || "");
+        setUserAvatar(userProfile.avatar_url || "");
+        setIsOnline(userProfile.is_online || false);
+
+        await fetchJobs(session.user.id);
+        await fetchStats(session.user.id);
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      }
+    };
+
+    fetchProfile();
   }, []);
 
   useEffect(() => {
