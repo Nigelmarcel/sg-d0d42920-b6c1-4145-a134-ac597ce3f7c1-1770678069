@@ -24,57 +24,57 @@ export default function TransporterDashboard() {
     const loadData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .maybeSingle();
-        
+        const { data: profile } = await supabase.
+        from("profiles").
+        select("*").
+        eq("id", session.user.id).
+        maybeSingle();
+
         if (profile) {
           setProfile(profile);
         }
 
-        const { data: availability } = await supabase
-          .from("transporter_availability")
-          .select("is_online")
-          .eq("transporter_id", session.user.id)
-          .maybeSingle();
+        const { data: availability } = await supabase.
+        from("transporter_availability").
+        select("is_online").
+        eq("transporter_id", session.user.id).
+        maybeSingle();
 
         if (availability) {
           setIsOnline(availability.is_online);
         }
 
-        const { data: jobs } = await supabase
-          .from("bookings")
-          .select("*")
-          .eq("status", "pending")
-          .order("created_at", { ascending: false });
+        const { data: jobs } = await supabase.
+        from("bookings").
+        select("*").
+        eq("status", "pending").
+        order("created_at", { ascending: false });
 
         if (jobs) setAvailableJobs(jobs);
 
-        const { data: active } = await supabase
-          .from("bookings")
-          .select("*")
-          .eq("transporter_id", session.user.id)
-          .in("status", ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"])
-          .order("created_at", { ascending: false });
+        const { data: active } = await supabase.
+        from("bookings").
+        select("*").
+        eq("transporter_id", session.user.id).
+        in("status", ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"]).
+        order("created_at", { ascending: false });
 
         if (active) setActiveJobs(active);
 
         // Calculate today's earnings
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
-        const { data: completedJobs } = await supabase
-          .from("bookings")
-          .select("total_price") 
-          .eq("transporter_id", session.user.id)
-          .eq("status", "delivered")
-          .gte("created_at", today.toISOString());
+
+        const { data: completedJobs } = await supabase.
+        from("bookings").
+        select("total_price").
+        eq("transporter_id", session.user.id).
+        eq("status", "delivered").
+        gte("created_at", today.toISOString());
 
         if (completedJobs) {
           // Assuming transporter gets 80% of total price for MVP logic
-          const earnings = completedJobs.reduce((sum, job) => sum + (Number(job.total_price) * 0.8), 0);
+          const earnings = completedJobs.reduce((sum, job) => sum + Number(job.total_price) * 0.8, 0);
           setTodayEarnings(earnings);
         }
       }
@@ -88,24 +88,24 @@ export default function TransporterDashboard() {
 
     const newStatus = !isOnline;
 
-    const { data: existing } = await supabase
-      .from("transporter_availability")
-      .select("id")
-      .eq("transporter_id", session.user.id)
-      .maybeSingle();
+    const { data: existing } = await supabase.
+    from("transporter_availability").
+    select("id").
+    eq("transporter_id", session.user.id).
+    maybeSingle();
 
     if (existing) {
-      await supabase
-        .from("transporter_availability")
-        .update({ is_online: newStatus, updated_at: new Date().toISOString() })
-        .eq("transporter_id", session.user.id);
+      await supabase.
+      from("transporter_availability").
+      update({ is_online: newStatus, updated_at: new Date().toISOString() }).
+      eq("transporter_id", session.user.id);
     } else {
-      await supabase
-        .from("transporter_availability")
-        .insert({
-          transporter_id: session.user.id,
-          is_online: newStatus,
-        });
+      await supabase.
+      from("transporter_availability").
+      insert({
+        transporter_id: session.user.id,
+        is_online: newStatus
+      });
     }
 
     setIsOnline(newStatus);
@@ -121,7 +121,7 @@ export default function TransporterDashboard() {
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">MoveHelsinki Driver</h1>
+            <h1 className="text-2xl font-bold text-gray-900" style={{ color: "#525252" }}>VANGO Driver</h1>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">
@@ -168,17 +168,17 @@ export default function TransporterDashboard() {
             </Card>
           </div>
 
-          {activeJobs.length > 0 && (
-            <Card className="mb-6">
+          {activeJobs.length > 0 &&
+          <Card className="mb-6">
               <CardHeader>
                 <CardTitle>Active Deliveries</CardTitle>
                 <CardDescription>Jobs currently in progress</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {activeJobs.map((job) => (
-                    <div key={job.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                         onClick={() => router.push(`/transporter/job/${job.id}`)}>
+                  {activeJobs.map((job) =>
+                <div key={job.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push(`/transporter/job/${job.id}`)}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <div className="font-semibold capitalize">{job.item_type.replace("_", " ")}</div>
@@ -202,11 +202,11 @@ export default function TransporterDashboard() {
                         <span className="font-bold text-lg text-green-600">€{Number(job.transporter_earnings).toFixed(2)}</span>
                       </div>
                     </div>
-                  ))}
+                )}
                 </div>
               </CardContent>
             </Card>
-          )}
+          }
 
           <Card>
             <CardHeader>
@@ -214,23 +214,23 @@ export default function TransporterDashboard() {
               <CardDescription>Accept jobs to start earning</CardDescription>
             </CardHeader>
             <CardContent>
-              {!isOnline ? (
-                <div className="text-center py-8 text-gray-500">
+              {!isOnline ?
+              <div className="text-center py-8 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <p>You are currently offline</p>
                   <p className="text-sm mt-2">Go online to see available jobs</p>
-                </div>
-              ) : availableJobs.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                </div> :
+              availableJobs.length === 0 ?
+              <div className="text-center py-8 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <p>No jobs available right now</p>
                   <p className="text-sm mt-2">Check back soon!</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {availableJobs.map((job) => (
-                    <div key={job.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                         onClick={() => router.push(`/transporter/job/${job.id}`)}>
+                </div> :
+
+              <div className="space-y-4">
+                  {availableJobs.map((job) =>
+                <div key={job.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push(`/transporter/job/${job.id}`)}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <div className="font-semibold capitalize">{job.item_type.replace("_", " ")}</div>
@@ -251,9 +251,9 @@ export default function TransporterDashboard() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                )}
                 </div>
-              )}
+              }
             </CardContent>
           </Card>
 
@@ -264,6 +264,6 @@ export default function TransporterDashboard() {
           </div>
         </main>
       </div>
-    </ProtectedRoute>
-  );
+    </ProtectedRoute>);
+
 }
