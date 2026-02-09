@@ -413,4 +413,26 @@ export const bookingService = {
       return false;
     }
   },
+
+  /**
+   * Permanently delete a completed or cancelled booking
+   */
+  async deleteBooking(bookingId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("id", bookingId);
+
+      if (error) {
+        console.error("Error deleting booking:", error);
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      return false;
+    }
+  },
 };

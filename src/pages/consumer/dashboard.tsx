@@ -35,7 +35,8 @@ import {
   Loader2,
   Camera,
   Truck,
-  X
+  X,
+  Trash2
 } from "lucide-react";
 import { ChatDialog } from "@/components/ChatDialog";
 
@@ -280,6 +281,50 @@ export default function ConsumerDashboard() {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to cancel booking",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to permanently delete this booking? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      const success = await bookingService.deleteBooking(bookingId);
+      if (success) {
+        toast({
+          title: "🗑️ Booking Deleted",
+          description: "The booking has been permanently removed",
+        });
+        
+        // Refresh bookings list
+        if (profile?.id) {
+          const bookings = await bookingService.getConsumerBookings(profile.id);
+          setAllBookings(bookings);
+          
+          // Recalculate stats
+          const completed = bookings.filter(b => b.status === "delivered");
+          const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
+          const pending = bookings.filter(b => b.status === "pending");
+
+          setCompletedCount(completed.length);
+          setActiveCount(active.length);
+          setPendingCount(pending.length);
+
+          const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
+          setTotalSpent(spent);
+        }
+      } else {
+        throw new Error("Failed to delete booking");
+      }
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete booking",
         variant: "destructive",
       });
     }
@@ -745,7 +790,27 @@ export default function ConsumerDashboard() {
                             <RotateCcw className="h-4 w-4 mr-2" />
                             Book Again
                           </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteBooking(booking.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
                         </>
+                      )}
+
+                      {/* Cancelled Booking Actions */}
+                      {booking.status === "cancelled" && (
+                        <Button
+                          variant="outline"
+                          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteBooking(booking.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
                       )}
                     </div>
                   </div>
