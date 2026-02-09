@@ -339,22 +339,22 @@ export default function TransporterDashboard() {
   };
 
   const renderJobCard = (booking: Booking, showActions = false) => (
-    <Card key={booking.id} className="hover:shadow-md transition-shadow">
+    <Card key={booking.id} className="hover:shadow-lg transition-all duration-200 border-slate-200">
       <CardContent className="p-6">
         {/* Header: Item Type + Earnings */}
         <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{getItemIcon(booking.item_type)}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{getItemIcon(booking.item_type)}</span>
             <div>
-              <h3 className="font-semibold capitalize">
-                {booking.item_type.replace("_", " ")}
+              <h3 className="font-semibold capitalize text-lg text-slate-900">
+                {(booking.item_type || "item").replace("_", " ")}
               </h3>
               <div className="flex items-center gap-2 mt-1">
-                <Badge className={getSizeBadge(booking.item_size)}>
-                  [{booking.item_size[0].toUpperCase()}] {booking.item_size}
+                <Badge className={getSizeBadge(booking.item_size || "small")}>
+                  [{(booking.item_size || "small")[0].toUpperCase()}] {booking.item_size || "small"}
                 </Badge>
-                {booking.item_photos && booking.item_photos.length > 0 && (
-                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                {booking.item_photos && Array.isArray(booking.item_photos) && booking.item_photos.length > 0 && (
+                  <div className="flex items-center gap-1 text-sm text-slate-500">
                     <ImageIcon className="w-4 h-4" />
                     {booking.item_photos.length}
                   </div>
@@ -363,20 +363,20 @@ export default function TransporterDashboard() {
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-green-600">
-              €{booking.transporter_earnings?.toFixed(2)}
+            <div className="text-2xl font-bold text-emerald-600">
+              €{(booking.transporter_earnings || 0).toFixed(2)}
             </div>
           </div>
         </div>
 
         {/* Special Instructions */}
         {booking.special_instructions && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-yellow-900 text-sm">Special Instructions:</p>
-                <p className="text-yellow-800 text-sm mt-1">{booking.special_instructions}</p>
+                <p className="font-medium text-amber-900 text-sm">Special Instructions:</p>
+                <p className="text-amber-800 text-sm mt-1">{booking.special_instructions}</p>
               </div>
             </div>
           </div>
@@ -385,21 +385,21 @@ export default function TransporterDashboard() {
         <Separator className="my-4" />
 
         {/* Addresses */}
-        <div className="space-y-1.5">
-          <div className="flex items-start gap-2">
-            <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <MapPin className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-xs text-muted-foreground font-medium">Pickup</p>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Pickup</p>
+              <p className="text-sm font-medium text-slate-900">
                 {booking.pickup_address?.replace(/, Finland$/, "") || "Address not provided"}
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-2">
-            <MapPin className="h-4 w-4 text-gold-600 dark:text-gold-400 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-3">
+            <MapPin className="h-5 w-5 text-gold-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-xs text-muted-foreground font-medium">Dropoff</p>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Dropoff</p>
+              <p className="text-sm font-medium text-slate-900">
                 {booking.dropoff_address?.replace(/, Finland$/, "") || "Address not provided"}
               </p>
             </div>
@@ -409,24 +409,24 @@ export default function TransporterDashboard() {
         <Separator className="my-4" />
 
         {/* Date, Time, Distance */}
-        <div className="flex items-center gap-4 text-sm text-gray-600">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center gap-4 text-sm text-slate-600">
+          <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
-            {new Date(booking.scheduled_at).toLocaleDateString("en-FI", {
+            {booking.scheduled_at ? new Date(booking.scheduled_at).toLocaleDateString("en-FI", {
               month: "short",
               day: "numeric",
               hour: "2-digit",
               minute: "2-digit"
-            })}
+            }) : "Not scheduled"}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Ruler className="w-4 h-4" />
-            {booking.distance_km?.toFixed(1)} km
+            {booking.distance_km ? booking.distance_km.toFixed(1) : "0.0"} km
           </div>
         </div>
 
         {/* Status Badge (for active/completed jobs) */}
-        {booking.status !== "pending" && (
+        {booking.status && booking.status !== "pending" && (
           <>
             <Separator className="my-4" />
             <div className="flex items-center justify-between">
@@ -436,13 +436,13 @@ export default function TransporterDashboard() {
         )}
 
         {/* Location Tracker (for active jobs only) */}
-        {showActions && isActiveJob(booking.status) && (
+        {showActions && isActiveJob(booking.status || "") && (
           <>
             <Separator className="my-4" />
             <LocationTracker
               bookingId={booking.id}
               transporterId={userId}
-              isActive={isActiveJob(booking.status)}
+              isActive={isActiveJob(booking.status || "")}
             />
           </>
         )}
@@ -456,10 +456,10 @@ export default function TransporterDashboard() {
               <div className="mt-4">
                 <Button 
                   onClick={() => handleAcceptJob(booking.id)}
-                  className="w-full bg-green-600 hover:bg-green-700"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
                   size="lg"
                 >
-                  Accept Job - €{booking.transporter_earnings?.toFixed(2)}
+                  Accept Job - €{(booking.transporter_earnings || 0).toFixed(2)}
                 </Button>
               </div>
             );
@@ -470,7 +470,7 @@ export default function TransporterDashboard() {
               <div className="mt-4">
                 <Button 
                   onClick={() => handleUpdateStatus(booking.id, nextAction.status)}
-                  className="w-full"
+                  className="w-full bg-gold-600 hover:bg-gold-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
                   size="lg"
                 >
                   {nextAction.label}
