@@ -128,3 +128,25 @@ export const profileService = {
     return !error;
   }
 };
+
+// Standalone exported functions for convenience
+export async function updateProfile(userId: string, updates: ProfileUpdate): Promise<Profile | null> {
+  return profileService.updateProfile(userId, updates);
+}
+
+export async function getProfile(userId: string): Promise<Profile | null> {
+  return profileService.getProfile(userId);
+}
+
+export async function upsertProfile(
+  userId: string, 
+  updates: {
+    role?: "consumer" | "transporter" | "admin";
+    full_name?: string;
+    phone?: string;
+    avatar_url?: string;
+    language?: string;
+  }
+): Promise<Profile | null> {
+  return profileService.upsertProfile(userId, updates);
+}
