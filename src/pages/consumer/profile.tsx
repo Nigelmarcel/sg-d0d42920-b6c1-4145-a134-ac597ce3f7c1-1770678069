@@ -10,12 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
+// Define the exact shape returned by the join query
+type BookingWithTransporter = Database["public"]["Tables"]["bookings"]["Row"] & {
   transporter: { id: string; full_name: string | null; email: string | null } | null;
 };
 
@@ -32,7 +33,7 @@ const STATUS_CONFIG = {
 export default function ConsumerProfile() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<BookingWithTransporter[]>([]);
   const [stats, setStats] = useState({
     totalBookings: 0,
     totalSpent: 0,
@@ -83,18 +84,21 @@ export default function ConsumerProfile() {
         .order("created_at", { ascending: false });
 
       if (bookingsError) throw bookingsError;
-      setBookings(bookingsData || []);
+      
+      // Cast the result to our defined type
+      const typedBookings = (bookingsData as unknown) as BookingWithTransporter[];
+      setBookings(typedBookings || []);
 
       // Calculate stats
-      const totalSpent = (bookingsData || [])
+      const totalSpent = (typedBookings || [])
         .filter(b => b.status === "delivered")
         .reduce((sum, b) => sum + (b.total_price || 0), 0);
       
-      const completedCount = (bookingsData || []).filter(b => b.status === "delivered").length;
-      const cancelledCount = (bookingsData || []).filter(b => b.status === "cancelled").length;
+      const completedCount = (typedBookings || []).filter(b => b.status === "delivered").length;
+      const cancelledCount = (typedBookings || []).filter(b => b.status === "cancelled").length;
 
       setStats({
-        totalBookings: bookingsData?.length || 0,
+        totalBookings: typedBookings?.length || 0,
         totalSpent,
         completedBookings: completedCount,
         cancelledBookings: cancelledCount,

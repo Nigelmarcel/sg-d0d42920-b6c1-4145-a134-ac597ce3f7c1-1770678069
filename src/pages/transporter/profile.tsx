@@ -10,13 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { User, Mail, Phone, Calendar, Package, DollarSign, Star, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Application = Database["public"]["Tables"]["transporter_applications"]["Row"];
-type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
+// Define the exact shape returned by the join query
+type BookingWithConsumer = Database["public"]["Tables"]["bookings"]["Row"] & {
   consumer: { id: string; full_name: string | null; email: string | null } | null;
 };
 
@@ -34,7 +35,7 @@ export default function TransporterProfile() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [application, setApplication] = useState<Application | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<BookingWithConsumer[]>([]);
   const [stats, setStats] = useState({
     totalJobs: 0,
     completedJobs: 0,
@@ -96,27 +97,30 @@ export default function TransporterProfile() {
         .order("created_at", { ascending: false });
 
       if (bookingsError) throw bookingsError;
-      setBookings(bookingsData || []);
+      
+      // Cast the result to our defined type
+      const typedBookings = (bookingsData as unknown) as BookingWithConsumer[];
+      setBookings(typedBookings || []);
 
       // Calculate stats
-      const totalEarnings = (bookingsData || [])
+      const totalEarnings = (typedBookings || [])
         .filter(b => b.status === "delivered")
         .reduce((sum, b) => sum + ((b.total_price || 0) * 0.8), 0); // 80% to transporter
 
       const monthStart = startOfMonth(new Date());
       const monthEnd = endOfMonth(new Date());
-      const monthlyEarnings = (bookingsData || [])
+      const monthlyEarnings = (typedBookings || [])
         .filter(b => {
           const bookingDate = new Date(b.created_at);
           return b.status === "delivered" && bookingDate >= monthStart && bookingDate <= monthEnd;
         })
         .reduce((sum, b) => sum + ((b.total_price || 0) * 0.8), 0);
 
-      const completedCount = (bookingsData || []).filter(b => b.status === "delivered").length;
-      const cancelledCount = (bookingsData || []).filter(b => b.status === "cancelled").length;
+      const completedCount = (typedBookings || []).filter(b => b.status === "delivered").length;
+      const cancelledCount = (typedBookings || []).filter(b => b.status === "cancelled").length;
 
       setStats({
-        totalJobs: bookingsData?.length || 0,
+        totalJobs: typedBookings?.length || 0,
         completedJobs: completedCount,
         totalEarnings,
         monthlyEarnings,
@@ -386,12 +390,12 @@ export default function TransporterProfile() {
 
                         <div className="space-y-2">
                           <Label className="text-muted-foreground">License Plate</Label>
-                          <p className="font-medium">{application.license_plate}</p>
+                          <p className="font-medium">{application.van_license_plate}</p>
                         </div>
 
                         <div className="space-y-2">
                           <Label className="text-muted-foreground">Bank Account (IBAN)</Label>
-                          <p className="font-medium">{application.bank_account}</p>
+                          <p className="font-medium">{application.bank_account_iban}</p>
                         </div>
                       </div>
 
