@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { geocodingService } from "./geocodingService";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingInsert = Database["public"]["Tables"]["bookings"]["Insert"];
@@ -18,6 +19,7 @@ export interface BookingFormData {
   itemType: string;
   itemSize: string;
   itemDescription?: string;
+  specialInstructions?: string;
   scheduledFor: string;
   notes?: string;
 }
@@ -26,6 +28,7 @@ interface PriceBreakdown {
   distanceKm: number;
   basePrice: number;
   distancePrice: number;
+  extrasPrice: number;
   totalPrice: number;
   platformFee: number;
   transporterEarnings: number;
@@ -79,7 +82,8 @@ export function calculatePriceBreakdown(
   const distancePrice = roundedDistance * 2;
   
   // Total price calculation
-  const subTotal = (basePrice + distancePrice) * sizeMultiplier;
+  const extrasPrice = 0; // Future implementation
+  const subTotal = (basePrice + distancePrice) * sizeMultiplier + extrasPrice;
   const totalPrice = Math.round(subTotal * 100) / 100;
   
   // Fee calculation (20% platform fee)
@@ -90,6 +94,7 @@ export function calculatePriceBreakdown(
     distanceKm: roundedDistance,
     basePrice,
     distancePrice: Math.round(distancePrice * 100) / 100,
+    extrasPrice,
     totalPrice,
     platformFee,
     transporterEarnings,
@@ -110,62 +115,72 @@ export function calculatePrice(
 
 export const bookingService = {
   // Create a new booking
-  async createBooking(formData: BookingFormData): Promise<Booking | null> {
+  async createBooking(userId: string, formData: BookingFormData) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.error("User not authenticated");
-        return null;
+      // Geocode pickup address
+      const pickupCoords = await geocodingService.geocodeAddress(formData.pickupAddress);
+      if (!pickupCoords) {
+        throw new Error("Could not find pickup address. Please check the address and try again.");
       }
 
-      const priceBreakdown = calculatePriceBreakdown(
-        formData.pickupLat,
-        formData.pickupLng,
-        formData.dropoffLat,
-        formData.dropoffLng,
+      // Geocode dropoff address
+      const dropoffCoords = await geocodingService.geocodeAddress(formData.dropoffAddress);
+      if (!dropoffCoords) {
+        throw new Error("Could not find dropoff address. Please check the address and try again.");
+      }
+
+      // Calculate distance
+      const distance = geocodingService.calculateDistance(
+        pickupCoords.lat,
+        pickupCoords.lng,
+        dropoffCoords.lat,
+        dropoffCoords.lng
+      );
+
+      // Calculate pricing with actual coordinates
+      const pricing = calculatePriceBreakdown(
+        pickupCoords.lat,
+        pickupCoords.lng,
+        dropoffCoords.lat,
+        dropoffCoords.lng,
         formData.itemSize
       );
 
-      const bookingData: BookingInsert = {
-        consumer_id: user.id,
-        pickup_address: formData.pickupAddress,
-        pickup_lat: formData.pickupLat,
-        pickup_lng: formData.pickupLng,
-        dropoff_address: formData.dropoffAddress,
-        dropoff_lat: formData.dropoffLat,
-        dropoff_lng: formData.dropoffLng,
-        item_type: formData.itemType as ItemType,
-        item_size: formData.itemSize as ItemSize,
-        special_instructions: formData.itemDescription, // Mapped from itemDescription
-        scheduled_at: formData.scheduledFor, // Mapped from scheduledFor
-        
-        // Price fields
-        distance_km: priceBreakdown.distanceKm,
-        base_price: priceBreakdown.basePrice,
-        distance_price: priceBreakdown.distancePrice,
-        total_price: priceBreakdown.totalPrice,
-        platform_fee: priceBreakdown.platformFee,
-        transporter_earnings: priceBreakdown.transporterEarnings,
-        
-        status: "pending",
-      };
-
       const { data, error } = await supabase
         .from("bookings")
-        .insert(bookingData)
+        .insert({
+          consumer_id: userId,
+          pickup_address: formData.pickupAddress,
+          pickup_lat: pickupCoords.lat,
+          pickup_lng: pickupCoords.lng,
+          dropoff_address: formData.dropoffAddress,
+          dropoff_lat: dropoffCoords.lat,
+          dropoff_lng: dropoffCoords.lng,
+          item_type: formData.itemType as ItemType,
+          item_size: formData.itemSize as "small" | "medium" | "large",
+          special_instructions: formData.specialInstructions || null,
+          scheduled_at: formData.scheduledFor || null,
+          distance_km: distance,
+          base_price: pricing.basePrice,
+          distance_price: pricing.distancePrice,
+          extras_price: pricing.extrasPrice,
+          total_price: pricing.totalPrice,
+          platform_fee: pricing.platformFee,
+          transporter_earnings: pricing.transporterEarnings,
+          status: "pending",
+        })
         .select()
-        .maybeSingle();
+        .single();
 
-      if (error) {
-        console.error("Error creating booking:", error);
-        return null;
-      }
+      if (error) throw error;
 
-      return data;
+      return { success: true, data };
     } catch (error) {
-      console.error("Error in createBooking:", error);
-      return null;
+      console.error("Error creating booking:", error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to create booking" 
+      };
     }
   },
 
