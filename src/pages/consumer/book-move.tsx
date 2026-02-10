@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { bookingService } from "@/services/bookingService";
 import { geocodingService } from "@/services/geocodingService";
 import { authService } from "@/services/authService";
+import { PaymentModal } from "@/components/PaymentModal";
 import {
   MapPin,
   Calendar,
@@ -102,6 +103,10 @@ export default function BookMove() {
   // Price calculation
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
+
+  // Payment state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUser();
@@ -221,7 +226,7 @@ export default function BookMove() {
           retries--;
           if (retries > 0) {
             console.log(`⏳ Retrying pickup geocoding... (${retries} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       }
@@ -248,7 +253,7 @@ export default function BookMove() {
           retries--;
           if (retries > 0) {
             console.log(`⏳ Retrying dropoff geocoding... (${retries} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       }
@@ -301,7 +306,7 @@ export default function BookMove() {
         scheduledAt
       });
 
-      await bookingService.createBooking(userId, {
+      const result = await bookingService.createBooking(userId, {
         pickupAddress,
         pickupLat: pickupCoords.lat,
         pickupLng: pickupCoords.lng,
@@ -315,14 +320,21 @@ export default function BookMove() {
         itemPhotos: photos.length > 0 ? photos : undefined
       });
 
-      console.log("✅ Booking created successfully!");
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "Failed to create booking");
+      }
+
+      console.log("✅ Booking created successfully:", result.data.id);
+
+      // Store booking ID and show payment modal
+      setCreatedBookingId(result.data.id);
+      setEstimatedPrice(total);
+      setShowPaymentModal(true);
 
       toast({
         title: "✅ Booking Created",
-        description: useAsap ? "Your move request is now live! Transporters will be notified." : "Your move has been scheduled successfully!",
+        description: "Please complete payment to confirm your move",
       });
-
-      router.push("/consumer/dashboard");
     } catch (error) {
       console.error("❌ Error creating booking:", error);
       const errorMessage = error instanceof Error ? error.message : "Could not create booking. Please try again.";
@@ -334,6 +346,14 @@ export default function BookMove() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePaymentSuccess = () => {
+    toast({
+      title: "✅ Payment Successful!",
+      description: "Your move has been confirmed. Transporters will be notified.",
+    });
+    router.push("/consumer/dashboard");
   };
 
   const handleDiscard = () => {
@@ -697,6 +717,17 @@ export default function BookMove() {
           </form>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && createdBookingId && estimatedPrice && (
+        <PaymentModal
+          open={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          bookingId={createdBookingId}
+          amount={estimatedPrice}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </ProtectedRoute>
   );
 }
