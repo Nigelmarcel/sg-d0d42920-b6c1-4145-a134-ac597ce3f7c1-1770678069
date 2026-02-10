@@ -441,7 +441,7 @@ ${"=".repeat(50)}
                                 ? "rgb(34, 197, 94)"
                                 : booking.status === "cancelled"
                                 ? "rgb(239, 68, 68)"
-                                : booking.status === "in_transit"
+                                : ["en_route_pickup", "picked_up", "en_route_dropoff"].includes(booking.status)
                                 ? "rgb(59, 130, 246)"
                                 : "rgb(234, 179, 8)",
                           }}>
