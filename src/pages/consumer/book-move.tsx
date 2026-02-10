@@ -683,7 +683,7 @@ export default function BookMove() {
               <Button
                 type="submit"
                 disabled={loading || !pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))}
-                className="bg-amber-500 hover:bg-amber-600 text-white px-8"
+                className="px-8 bg-amber-500 hover:bg-amber-600 text-white hover:scale-105 hover:shadow-lg transition-all duration-200"
               >
                 {loading ? (
                   <>
