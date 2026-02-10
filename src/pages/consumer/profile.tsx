@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home, LogOut, TruckIcon, Download, Trash2 } from "lucide-react";
+import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home, LogOut, TruckIcon, Download, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { bookingService } from "@/services/bookingService";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,8 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type BookingWithTransporter = Database["public"]["Tables"]["bookings"]["Row"] & {
   transporter: { id: string; full_name: string | null; email: string | null } | null;
 };
+// Alias for easier usage
+type Booking = BookingWithTransporter;
 
 const STATUS_CONFIG = {
   pending: { label: "Pending", color: "bg-yellow-500", icon: Clock },
@@ -30,13 +32,14 @@ const STATUS_CONFIG = {
   en_route_dropoff: { label: "En Route to Dropoff", color: "bg-cyan-500", icon: ArrowRight },
   delivered: { label: "Delivered", color: "bg-green-500", icon: Package },
   cancelled: { label: "Cancelled", color: "bg-red-500", icon: Clock },
+  in_transit: { label: "In Transit", color: "bg-blue-500", icon: TruckIcon },
 };
 
 export default function ConsumerProfile() {
   const router = useRouter();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [bookings, setBookings] = useState<BookingWithTransporter[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState({
     totalBookings: 0,
     totalSpent: 0,
@@ -49,6 +52,21 @@ export default function ConsumerProfile() {
     full_name: "",
     phone: "",
   });
+  const [activeTab, setActiveTab] = useState("profile");
+  const [currentPage, setCurrentPage] = useState(1);
+  const bookingsPerPage = 10;
+
+  // Calculate pagination
+  const indexOfLastBooking = currentPage * bookingsPerPage;
+  const indexOfFirstBooking = indexOfLastBooking - bookingsPerPage;
+  const currentBookings = bookings.slice(indexOfFirstBooking, indexOfLastBooking);
+  const totalPages = Math.ceil(bookings.length / bookingsPerPage);
+
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top of booking history section
+    document.getElementById("booking-history-list")?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
     loadProfileData();
@@ -89,8 +107,9 @@ export default function ConsumerProfile() {
       if (bookingsError) throw bookingsError;
       
       // Cast the result to our defined type
-      const typedBookings = (bookingsData as unknown) as BookingWithTransporter[];
+      const typedBookings = (bookingsData as unknown) as Booking[];
       setBookings(typedBookings || []);
+      setCurrentPage(1); // Reset pagination on load
 
       // Calculate stats
       const totalSpent = (typedBookings || [])
@@ -397,121 +416,164 @@ ${"=".repeat(50)}
               <Card>
                 <CardHeader>
                   <CardTitle>Booking History</CardTitle>
-                  <CardDescription>View all your past and current bookings</CardDescription>
+                  <CardDescription>
+                    View all your past and current bookings
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {bookings.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">No bookings yet</p>
-                      <Button
-                        variant="outline"
-                        className="mt-4"
-                        onClick={() => router.push("/consumer/book-move")}
-                      >
-                        Create Your First Booking
-                      </Button>
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No bookings yet</p>
+                      <p className="text-sm">
+                        Your booking history will appear here
+                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {bookings.map((booking) => {
-                        const StatusIcon = STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.icon || Clock;
-                        return (
-                          <div
-                            key={booking.id}
-                            className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
+                    <>
+                      <div id="booking-history-list" className="space-y-4">
+                        {currentBookings.map((booking) => {
+                          const StatusIcon = STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.icon || Package;
+                          return (
+                          <Card key={booking.id} className="border-l-4" style={{
+                            borderLeftColor:
+                              booking.status === "delivered"
+                                ? "rgb(34, 197, 94)"
+                                : booking.status === "cancelled"
+                                ? "rgb(239, 68, 68)"
+                                : booking.status === "in_transit"
+                                ? "rgb(59, 130, 246)"
+                                : "rgb(234, 179, 8)",
+                          }}>
+                            <CardHeader>
+                              <CardTitle>
+                                <div className="flex items-center gap-2">
                                   <Badge className={STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.color}>
                                     <StatusIcon className="h-3 w-3 mr-1" />
-                                    {STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.label}
+                                    {STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.label || booking.status}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
                                     {format(new Date(booking.created_at), "MMM dd, yyyy 'at' HH:mm")}
                                   </span>
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                  Booking ID: {booking.id.slice(0, 8)}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-2xl font-bold">€{booking.total_price?.toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground">Total Price</p>
-                              </div>
-                            </div>
-
-                            <Separator className="my-3" />
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="h-4 w-4 text-green-500 mt-1" />
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">Pickup</p>
-                                    <p className="font-medium">{booking.pickup_address}</p>
+                              </CardTitle>
+                              <CardDescription>
+                                Booking ID: {booking.id.slice(0, 8)}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="h-4 w-4 text-green-500 mt-1" />
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Pickup</p>
+                                      <p className="font-medium">{booking.pickup_address}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="h-4 w-4 text-red-500 mt-1" />
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Dropoff</p>
+                                      <p className="font-medium">{booking.dropoff_address}</p>
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="h-4 w-4 text-red-500 mt-1" />
+
+                                <div className="space-y-2">
                                   <div>
-                                    <p className="text-xs text-muted-foreground">Dropoff</p>
-                                    <p className="font-medium">{booking.dropoff_address}</p>
+                                    <p className="text-xs text-muted-foreground">Item Details</p>
+                                    <p className="font-medium">{booking.item_type} - {booking.item_size}</p>
                                   </div>
+                                  {booking.transporter && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Transporter</p>
+                                      <p className="font-medium">{booking.transporter.full_name || "Unknown"}</p>
+                                    </div>
+                                  )}
+                                  {booking.special_instructions && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Special Instructions</p>
+                                      <p className="text-sm">{booking.special_instructions}</p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
-                              <div className="space-y-2">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Item Details</p>
-                                  <p className="font-medium">{booking.item_type} - {booking.item_size}</p>
-                                </div>
-                                {booking.transporter && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">Transporter</p>
-                                    <p className="font-medium">{booking.transporter.full_name || "Unknown"}</p>
+                              {/* Action Buttons for Completed/Cancelled Bookings */}
+                              {(booking.status === "delivered" || booking.status === "cancelled") && (
+                                <>
+                                  <Separator className="my-3" />
+                                  <div className="flex gap-2">
+                                    <Button
+                                      onClick={() => handleSaveBookingDetails(booking)}
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex-1 text-blue-600 hover:bg-blue-50 border-blue-200"
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Save Details
+                                    </Button>
+                                    <Button
+                                      onClick={() => handleDeleteBooking(booking.id)}
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex-1 text-red-600 hover:bg-red-50 border-red-200"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </Button>
                                   </div>
-                                )}
-                                {booking.special_instructions && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">Special Instructions</p>
-                                    <p className="text-sm">{booking.special_instructions}</p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                                </>
+                              )}
+                            </CardContent>
+                          </Card>
+                          );
+                        })}
+                      </div>
 
-                            {/* Action Buttons for Completed/Cancelled Bookings */}
-                            {(booking.status === "delivered" || booking.status === "cancelled") && (
-                              <>
-                                <Separator className="my-3" />
-                                <div className="flex gap-2">
-                                  <Button
-                                    onClick={() => handleSaveBookingDetails(booking)}
-                                    variant="outline"
-                                    size="sm"
-                                    className="flex-1 text-blue-600 hover:bg-blue-50 border-blue-200"
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Save Details
-                                  </Button>
-                                  <Button
-                                    onClick={() => handleDeleteBooking(booking.id)}
-                                    variant="outline"
-                                    size="sm"
-                                    className="flex-1 text-red-600 hover:bg-red-50 border-red-200"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </Button>
-                                </div>
-                              </>
-                            )}
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                          <div className="text-sm text-muted-foreground">
+                            Showing {indexOfFirstBooking + 1}-{Math.min(indexOfLastBooking, bookings.length)} of {bookings.length} bookings
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              disabled={currentPage === 1}
+                            >
+                              <ChevronLeft className="h-4 w-4 mr-1" />
+                              Previous
+                            </Button>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                <Button
+                                  key={page}
+                                  variant={currentPage === page ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handlePageChange(page)}
+                                  className="min-w-[40px]"
+                                >
+                                  {page}
+                                </Button>
+                              ))}
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                            >
+                              Next
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
