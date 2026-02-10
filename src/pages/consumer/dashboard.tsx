@@ -480,7 +480,6 @@ ${"=".repeat(50)}
               {/* Logo & Title */}
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Consumer Dashboard</h1>
-                <p className="text-sm text-muted-foreground">Welcome back, {profile.full_name || "User"}</p>
               </div>
 
               {/* User Menu */}
@@ -725,7 +724,7 @@ ${"=".repeat(50)}
                 </h3>
                 <p className="text-muted-foreground mb-6">
                   {activeFilter === "all" 
-                    ? "Book your first move to get started!"
+                    ? "Book your move to get started!"
                     : "Try selecting a different filter or booking a new move."}
                 </p>
                 <Button
@@ -733,7 +732,7 @@ ${"=".repeat(50)}
                   className="bg-navy-900 hover:bg-navy-950"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Book Your First Move
+                  Book Your Move
                 </Button>
               </Card>
             ) : (
