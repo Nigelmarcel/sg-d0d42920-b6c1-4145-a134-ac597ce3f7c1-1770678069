@@ -324,7 +324,7 @@ ${"=".repeat(50)}
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-blue-500" />
+                  <TrendingUp className="h-5 w-5 text-navy-900" />
                   <span className="text-3xl font-bold">{stats.completedBookings}</span>
                 </div>
               </CardContent>
@@ -509,7 +509,7 @@ ${"=".repeat(50)}
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleSaveBookingDetails(booking)}
-                                      className="flex-1 text-blue-600 hover:bg-blue-50 border-blue-200"
+                                      className="flex-1 text-navy-900 hover:bg-navy-900/10 border-navy-900/20"
                                     >
                                       <Download className="h-4 w-4 mr-2" />
                                       Receipt

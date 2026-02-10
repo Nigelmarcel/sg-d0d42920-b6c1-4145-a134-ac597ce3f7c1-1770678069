@@ -900,7 +900,7 @@ ${"=".repeat(50)}
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleSaveBookingDetails(booking)}
-                                className="flex-1 text-blue-600 hover:bg-blue-50 border-blue-200"
+                                className="flex-1 text-navy-900 hover:bg-navy-900/10 border-navy-900/20"
                               >
                                 <Download className="h-4 w-4 mr-2" />
                                 Receipt
@@ -969,26 +969,26 @@ ${"=".repeat(50)}
                     </p>
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left space-y-2">
-                    <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+                  <div className="bg-navy-900/5 border border-navy-900/20 rounded-lg p-4 text-left space-y-2">
+                    <h3 className="font-semibold text-navy-900 flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5" />
                       Quick Start Guide
                     </h3>
-                    <ul className="space-y-2 text-sm text-blue-800">
+                    <ul className="space-y-2 text-sm text-navy-900/80">
                       <li className="flex items-start gap-2">
-                        <span className="text-blue-600">1.</span>
+                        <span className="text-navy-900">1.</span>
                         Click "Book a Move" to create your first booking
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-blue-600">2.</span>
+                        <span className="text-navy-900">2.</span>
                         Enter pickup and dropoff addresses
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-blue-600">3.</span>
+                        <span className="text-navy-900">3.</span>
                         Get matched with a transporter
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-blue-600">4.</span>
+                        <span className="text-navy-900">4.</span>
                         Track your delivery in real-time
                       </li>
                     </ul>

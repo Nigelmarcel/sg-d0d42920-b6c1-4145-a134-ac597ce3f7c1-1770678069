@@ -669,32 +669,31 @@ export default function BookMove() {
               />
             </Card>
 
-            {/* Action Buttons */}
-            <div className="flex gap-4">
+            {/* Bottom Actions */}
+            <div className="flex justify-between items-center pt-6 border-t">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => router.push("/consumer/dashboard")}
-                className="flex-1"
+                className="text-gray-600"
               >
                 Cancel
               </Button>
-              
+
               <Button
                 type="submit"
                 disabled={loading || !pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))}
-                className="flex-1 bg-gradient-to-r from-navy-900 to-navy-950 hover:from-navy-950 hover:to-black text-white font-bold py-6 text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-amber-500 hover:bg-amber-600 text-white px-8"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Confirming Booking...
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Booking...
                   </>
                 ) : (
                   <>
-                    <Check className="mr-2 h-5 w-5" />
-                    Confirm Booking
-                    {estimatedPrice && ` - €${estimatedPrice.toFixed(2)}`}
+                    <Check className="h-4 w-4 mr-2" />
+                    Book Move
                   </>
                 )}
               </Button>
@@ -723,16 +722,6 @@ export default function BookMove() {
                 </p>
               </div>
             )}
-
-            {/* Debugging info - Remove in production */}
-            <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm">
-              <p className="font-semibold mb-2">Debug Info (poista tuotannossa):</p>
-              <p>Pickup: {pickupAddress || "tyhjä"}</p>
-              <p>Dropoff: {dropoffAddress || "tyhjä"}</p>
-              <p>Estimated Price: {estimatedPrice ? `€${estimatedPrice.toFixed(2)}` : "ei laskettu"}</p>
-              <p>Distance: {distance ? `${distance} km` : "ei laskettu"}</p>
-              <p>Button Status: {(!pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))) ? "DISABLED" : "ENABLED"}</p>
-            </div>
           </form>
         </div>
       </div>
