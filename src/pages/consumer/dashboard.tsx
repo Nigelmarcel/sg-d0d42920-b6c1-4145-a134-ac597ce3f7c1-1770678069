@@ -596,14 +596,19 @@ ${"=".repeat(50)}
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Quick Action Button */}
+          {/* DEBUG: Version indicator - Remove after confirming visibility */}
+          <div className="mb-4 p-4 bg-red-500 text-white text-center font-bold rounded-lg">
+            🔴 PAGE LOADED - VERSION 2.0 - IF YOU SEE THIS, PAGE IS UPDATED
+          </div>
+
+          {/* Quick Action Button - HIGHLY VISIBLE */}
           <div className="mb-6">
             <Button
               onClick={() => router.push('/consumer/book-move')}
-              className="bg-navy-900 hover:bg-navy-950 w-full h-14 text-lg font-semibold shadow-lg"
+              className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 w-full h-20 text-2xl font-bold shadow-2xl animate-pulse"
             >
-              <Plus className="w-6 h-6 mr-2" />
-              Book a Move
+              <Plus className="w-10 h-10 mr-3" />
+              🚀 BOOK A MOVE NOW 🚀
             </Button>
           </div>
 
