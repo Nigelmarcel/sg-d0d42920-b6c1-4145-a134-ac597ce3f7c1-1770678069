@@ -638,27 +638,43 @@ export default function BookMove() {
                 onClick={() => router.push("/consumer/dashboard")}
                 className="flex-1"
               >
-                Peruuta
+                Cancel
               </Button>
               
               <Button
                 type="submit"
                 disabled={loading || !pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))}
-                className="flex-1 bg-gradient-to-r from-navy-600 to-gold-600 hover:from-navy-700 hover:to-gold-700 text-white font-semibold py-6 text-lg"
+                className="flex-1 bg-gradient-to-r from-navy-900 to-navy-950 hover:from-navy-950 hover:to-black text-white font-bold py-6 text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Vahvistetaan...
+                    Confirming Booking...
                   </>
                 ) : (
                   <>
-                    ✓ Vahvista Tilaus
+                    <Check className="mr-2 h-5 w-5" />
+                    Confirm Booking
                     {estimatedPrice && ` - €${estimatedPrice.toFixed(2)}`}
                   </>
                 )}
               </Button>
             </div>
+
+            {/* Helper Text for Disabled Button */}
+            {(!pickupAddress || !dropoffAddress || (!useAsap && (!scheduledDate || !scheduledTime))) && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800 font-medium">
+                  ⚠️ Please fill in all required fields to confirm your booking:
+                </p>
+                <ul className="mt-2 ml-4 text-sm text-amber-700 list-disc space-y-1">
+                  {!pickupAddress && <li>Pickup address is required</li>}
+                  {!dropoffAddress && <li>Dropoff address is required</li>}
+                  {!useAsap && !scheduledDate && <li>Select a date (or choose ASAP)</li>}
+                  {!useAsap && !scheduledTime && <li>Select a time (or choose ASAP)</li>}
+                </ul>
+              </div>
+            )}
 
             {/* Pricing info or note */}
             {!estimatedPrice && pickupAddress && dropoffAddress && (
