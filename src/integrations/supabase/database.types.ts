@@ -352,6 +352,56 @@ export type Database = {
           },
         ]
       }
+      saved_payment_methods: {
+        Row: {
+          card_brand: string
+          card_exp_month: number
+          card_exp_year: number
+          card_last4: string
+          cardholder_name: string
+          created_at: string | null
+          id: string
+          is_default: boolean
+          stripe_payment_method_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          card_brand: string
+          card_exp_month: number
+          card_exp_year: number
+          card_last4: string
+          cardholder_name: string
+          created_at?: string | null
+          id?: string
+          is_default?: boolean
+          stripe_payment_method_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          card_brand?: string
+          card_exp_month?: number
+          card_exp_year?: number
+          card_last4?: string
+          cardholder_name?: string
+          created_at?: string | null
+          id?: string
+          is_default?: boolean
+          stripe_payment_method_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_payment_methods_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transporter_applications: {
         Row: {
           admin_notes: string | null
