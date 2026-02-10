@@ -531,8 +531,8 @@ export default function TransporterDashboard() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3 px-4 py-2 rounded-lg border border-border bg-card shadow-sm">
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${isOnline ? "bg-success animate-pulse" : "bg-muted-foreground"}`}></div>
-                    <span className="text-sm font-medium text-foreground">
+                    <div className={`w-3 h-3 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`}></div>
+                    <span className="text-base font-medium text-foreground">
                       {isOnline ? "Online" : "Offline"}
                     </span>
                   </div>
