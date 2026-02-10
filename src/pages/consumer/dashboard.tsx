@@ -597,22 +597,6 @@ ${"=".repeat(50)}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             
-            {/* User Greeting */}
-            <div className="flex items-center gap-4 mb-6">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="bg-navy-100 text-navy-900 text-xl font-semibold">
-                  {profile?.full_name?.split(' ').map(n => n[0]).join('') || profile?.email?.[0] || 'C'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-2xl font-bold text-navy-900">
-                  Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}!
-                </h1>
-                <p className="text-gray-600">Ready to book your next move?</p>
-              </div>
-            </div>
-
             {/* Quick Action Button - Subtle Navy */}
             <div className="mb-6">
               <Button
