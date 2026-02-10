@@ -127,7 +127,7 @@ export default function BookMove() {
       const dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
 
       if (!pickupCoords || !dropoffCoords) {
-        console.error("❌ Could not geocode addresses");
+        console.log("⚠️ Could not geocode addresses - will retry on submit");
         setEstimatedPrice(null);
         setDistance(null);
         return;
@@ -158,7 +158,7 @@ export default function BookMove() {
       setEstimatedPrice(total);
       console.log("💰 Price calculated:", { distance: calculatedDistance, price: total });
     } catch (error) {
-      console.error("❌ Error calculating price:", error);
+      console.log("⚠️ Price calculation failed - will retry on submit:", error);
       setEstimatedPrice(null);
       setDistance(null);
     }
@@ -207,11 +207,17 @@ export default function BookMove() {
       console.log("🚀 Starting booking creation...");
       console.log("📍 Geocoding pickup address:", pickupAddress);
       
+      toast({
+        title: "Validating addresses...",
+        description: "Please wait while we locate your addresses",
+      });
+
       const pickupCoords = await geocodingService.geocodeAddress(pickupAddress);
       if (!pickupCoords) {
+        console.error("❌ Failed to geocode pickup address:", pickupAddress);
         toast({
-          title: "Invalid Pickup Address",
-          description: "Could not find the pickup address. Please check and try again.",
+          title: "Pickup Address Not Found",
+          description: `Could not locate "${pickupAddress}". Try: "Mannerheimintie 1, Helsinki" or "Kamppi, Helsinki"`,
           variant: "destructive"
         });
         setLoading(false);
@@ -223,9 +229,10 @@ export default function BookMove() {
 
       const dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
       if (!dropoffCoords) {
+        console.error("❌ Failed to geocode dropoff address:", dropoffAddress);
         toast({
-          title: "Invalid Dropoff Address",
-          description: "Could not find the dropoff address. Please check and try again.",
+          title: "Dropoff Address Not Found",
+          description: `Could not locate "${dropoffAddress}". Try: "Kallio, Helsinki" or "Aleksanterinkatu 52, Helsinki"`,
           variant: "destructive"
         });
         setLoading(false);
@@ -271,9 +278,10 @@ export default function BookMove() {
       router.push("/consumer/dashboard");
     } catch (error) {
       console.error("❌ Error creating booking:", error);
+      const errorMessage = error instanceof Error ? error.message : "Could not create booking. Please try again.";
       toast({
         title: "Booking Failed",
-        description: error instanceof Error ? error.message : "Could not create booking. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -592,7 +600,10 @@ export default function BookMove() {
                 className="flex-1 bg-gradient-to-r from-navy-600 to-gold-600 hover:from-navy-700 hover:to-gold-700 text-white font-semibold py-6 text-lg"
               >
                 {loading ? (
-                  "Ladataan..."
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Vahvistetaan...
+                  </>
                 ) : (
                   <>
                     ✓ Vahvista Tilaus
@@ -601,6 +612,15 @@ export default function BookMove() {
                 )}
               </Button>
             </div>
+
+            {/* Pricing info or note */}
+            {!estimatedPrice && pickupAddress && dropoffAddress && (
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  💡 Price will be calculated when you confirm the booking
+                </p>
+              </div>
+            )}
 
             {/* Debugging info - Remove in production */}
             <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm">
