@@ -504,20 +504,20 @@ ${"=".repeat(50)}
                               {(booking.status === "delivered" || booking.status === "cancelled") && (
                                 <>
                                   <Separator className="my-3" />
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-2 w-full">
                                     <Button
-                                      onClick={() => handleSaveBookingDetails(booking)}
                                       variant="outline"
                                       size="sm"
+                                      onClick={() => handleSaveBookingDetails(booking)}
                                       className="flex-1 text-blue-600 hover:bg-blue-50 border-blue-200"
                                     >
                                       <Download className="h-4 w-4 mr-2" />
-                                      Save Details
+                                      Receipt
                                     </Button>
                                     <Button
-                                      onClick={() => handleDeleteBooking(booking.id)}
                                       variant="outline"
                                       size="sm"
+                                      onClick={() => handleDeleteBooking(booking.id)}
                                       className="flex-1 text-red-600 hover:bg-red-50 border-red-200"
                                     >
                                       <Trash2 className="h-4 w-4 mr-2" />

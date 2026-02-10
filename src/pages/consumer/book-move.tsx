@@ -26,7 +26,9 @@ import {
   CheckCircle2,
   Clock,
   X,
-  Navigation
+  Navigation,
+  Sofa,
+  Tv
 } from "lucide-react";
 
 type DeliverySize = "small" | "medium" | "large";
@@ -34,11 +36,8 @@ type DeliverySize = "small" | "medium" | "large";
 const SIZE_OPTIONS = [
   {
     value: "small" as DeliverySize,
-    label: "Small (S)",
+    label: "Small",
     badge: "S",
-    color: "bg-navy-900/10 text-navy-900 border-navy-900/20",
-    hoverColor: "hover:bg-navy-900/20 hover:border-navy-900/30",
-    selectedColor: "ring-2 ring-navy-900 bg-navy-900/5",
     examples: [
       "Chair or small table",
       "TV (<55″)",
@@ -46,15 +45,12 @@ const SIZE_OPTIONS = [
       "Boxes (1-3)",
       "Suitcases or bags"
     ],
-    icon: "📦"
+    iconComponent: Box, // Lucide icon component
   },
   {
     value: "medium" as DeliverySize,
-    label: "Medium (M)",
+    label: "Medium",
     badge: "M",
-    color: "bg-orange-100 text-orange-700 border-orange-300",
-    hoverColor: "hover:bg-orange-200 hover:border-orange-400",
-    selectedColor: "ring-2 ring-orange-500 bg-orange-50",
     examples: [
       "Single wardrobe",
       "TV (55″+)",
@@ -62,15 +58,12 @@ const SIZE_OPTIONS = [
       "2-seater sofa",
       "Washing machine or fridge"
     ],
-    icon: "📺"
+    iconComponent: Tv, // Lucide icon component
   },
   {
     value: "large" as DeliverySize,
-    label: "Large (L)",
+    label: "Large",
     badge: "L",
-    color: "bg-red-100 text-red-700 border-red-300",
-    hoverColor: "hover:bg-red-200 hover:border-red-400",
-    selectedColor: "ring-2 ring-red-500 bg-red-50",
     examples: [
       "3-seater sofa",
       "Large wardrobe",
@@ -78,7 +71,7 @@ const SIZE_OPTIONS = [
       "King-size mattress",
       "Multiple large items (home move)"
     ],
-    icon: "🛋️"
+    iconComponent: Sofa, // Lucide icon component
   }
 ];
 
@@ -437,51 +430,77 @@ export default function BookMove() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {SIZE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setDeliverySize(option.value)}
-                    className={`
-                      relative p-6 rounded-lg border-2 transition-all text-left
-                      ${deliverySize === option.value 
-                        ? `${option.selectedColor} border-current` 
-                        : `${option.color} border-current ${option.hoverColor}`
-                      }
-                    `}
-                  >
-                    {/* Size Badge */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-4xl">{option.icon}</span>
-                      <div className={`
-                        px-3 py-1 rounded-full font-bold text-lg
-                        ${deliverySize === option.value ? "bg-white shadow-md" : "bg-white/50"}
-                      `}>
-                        {option.badge}
+                {SIZE_OPTIONS.map((option) => {
+                  const IconComponent = option.iconComponent;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setDeliverySize(option.value)}
+                      className={`
+                        relative p-6 rounded-xl border-2 transition-all duration-300 text-left bg-white
+                        ${deliverySize === option.value 
+                          ? "border-amber-500 shadow-lg shadow-amber-100 ring-2 ring-amber-200" 
+                          : "border-gray-200 hover:border-gray-300 hover:shadow-md"
+                        }
+                      `}
+                    >
+                      {/* Icon and Badge Row */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className={`
+                          p-3 rounded-lg transition-all duration-300
+                          ${deliverySize === option.value 
+                            ? "bg-amber-50" 
+                            : "bg-gray-50"
+                          }
+                        `}>
+                          <IconComponent 
+                            className={`h-8 w-8 transition-colors duration-300 ${
+                              deliverySize === option.value 
+                                ? "text-amber-600" 
+                                : "text-gray-600"
+                            }`} 
+                          />
+                        </div>
+                        <div className={`
+                          w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-lg transition-all duration-300
+                          ${deliverySize === option.value 
+                            ? "border-amber-500 text-amber-600 bg-amber-50" 
+                            : "border-gray-300 text-gray-600"
+                          }
+                        `}>
+                          {option.badge}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Label */}
-                    <h3 className="font-bold text-lg mb-3">{option.label}</h3>
+                      {/* Label */}
+                      <h3 className={`font-bold text-xl mb-4 transition-colors duration-300 ${
+                        deliverySize === option.value ? "text-amber-900" : "text-gray-900"
+                      }`}>
+                        {option.label}
+                      </h3>
 
-                    {/* Examples */}
-                    <ul className="space-y-1.5 text-sm">
-                      {option.examples.map((example, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          <span>{example}</span>
-                        </li>
-                      ))}
-                    </ul>
+                      {/* Examples */}
+                      <ul className="space-y-2 text-sm">
+                        {option.examples.map((example, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-gray-600">
+                            <CheckCircle2 className={`h-4 w-4 mt-0.5 flex-shrink-0 transition-colors duration-300 ${
+                              deliverySize === option.value ? "text-amber-500" : "text-gray-400"
+                            }`} />
+                            <span>{example}</span>
+                          </li>
+                        ))}
+                      </ul>
 
-                    {/* Selected Indicator */}
-                    {deliverySize === option.value && (
-                      <div className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-lg">
-                        <CheckCircle2 className="h-6 w-6 text-green-600" />
-                      </div>
-                    )}
-                  </button>
-                ))}
+                      {/* Selected Indicator */}
+                      {deliverySize === option.value && (
+                        <div className="absolute -top-3 -right-3 bg-amber-500 rounded-full p-1.5 shadow-lg">
+                          <Check className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </Card>
 
