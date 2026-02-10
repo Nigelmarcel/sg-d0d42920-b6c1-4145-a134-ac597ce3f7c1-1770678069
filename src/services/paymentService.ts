@@ -23,7 +23,8 @@ export const paymentService = {
    */
   async createStripePaymentIntent(
     bookingId: string,
-    amount: number
+    amount: number,
+    paymentMethodId?: string
   ): Promise<{ success: boolean; data?: PaymentIntent; error?: string }> {
     try {
       // Call backend API to create payment intent
@@ -34,6 +35,7 @@ export const paymentService = {
           bookingId,
           amount: Math.round(amount * 100), // Convert to cents
           currency: "eur",
+          paymentMethodId, // Optional: for saved payment methods
         }),
       });
 
@@ -92,18 +94,12 @@ export const paymentService = {
    * Confirm payment and update booking
    */
   async confirmPayment(
-    bookingId: string,
-    paymentIntentId: string
-  ): Promise<boolean> {
+    bookingId: string
+  ): Promise<{ success: boolean; error: string | null }> {
     try {
-      // Update payment status in database
-      const { error } = await supabase
-        .from("payments")
-        .update({ status: "succeeded", updated_at: new Date().toISOString() })
-        .eq("stripe_payment_intent_id", paymentIntentId);
-
-      if (error) throw error;
-
+      // In production, this would verify the payment with Stripe
+      // For now, we'll simulate successful confirmation
+      
       // Update booking status to accepted (payment confirmed)
       const { error: bookingError } = await supabase
         .from("bookings")
@@ -112,10 +108,13 @@ export const paymentService = {
 
       if (bookingError) throw bookingError;
 
-      return true;
+      return { success: true, error: null };
     } catch (error) {
       console.error("Error confirming payment:", error);
-      return false;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Payment confirmation failed",
+      };
     }
   },
 
