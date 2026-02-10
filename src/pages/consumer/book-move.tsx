@@ -424,7 +424,7 @@ export default function BookMove() {
             {/* Delivery Size Selection */}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Package className="h-5 w-5 text-blue-600" />
+                <Package className="h-5 w-5 text-navy-900" />
                 <h2 className="text-xl font-semibold">Delivery Size</h2>
                 <span className="text-red-500">*</span>
               </div>
@@ -507,7 +507,7 @@ export default function BookMove() {
             {/* Item Description (Optional) */}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <FileText className="h-5 w-5 text-blue-600" />
+                <FileText className="h-5 w-5 text-navy-900" />
                 <h2 className="text-xl font-semibold">Item Description</h2>
                 <span className="text-gray-400 text-sm">(Optional)</span>
               </div>
@@ -530,7 +530,7 @@ export default function BookMove() {
             {/* Addresses */}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <MapPin className="h-5 w-5 text-blue-600" />
+                <MapPin className="h-5 w-5 text-navy-900" />
                 <h2 className="text-xl font-semibold">Pickup & Dropoff</h2>
                 <span className="text-red-500">*</span>
               </div>
@@ -579,7 +579,7 @@ export default function BookMove() {
             {/* Schedule */}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-blue-600" />
+                <Clock className="h-5 w-5 text-navy-900" />
                 <h2 className="text-xl font-semibold">When do you need this?</h2>
                 <span className="text-red-500">*</span>
               </div>
@@ -657,7 +657,7 @@ export default function BookMove() {
             {/* Special Instructions */}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <FileText className="h-5 w-5 text-blue-600" />
+                <FileText className="h-5 w-5 text-navy-900" />
                 <h2 className="text-xl font-semibold">Special Instructions</h2>
                 <span className="text-gray-400 text-sm">(Optional)</span>
               </div>
