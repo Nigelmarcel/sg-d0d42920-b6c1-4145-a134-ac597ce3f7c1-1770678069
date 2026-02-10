@@ -297,46 +297,6 @@ export default function ConsumerDashboard() {
     }
   };
 
-  const handleDeleteBooking = async (bookingId: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to permanently delete this booking? This action cannot be undone."
-    );
-    if (!confirmed) return;
-
-    try {
-      const success = await bookingService.deleteBooking(bookingId);
-      
-      if (success) {
-        toast({
-          title: "🗑️ Booking Deleted",
-          description: "The booking has been permanently removed",
-        });
-
-        // Refresh bookings
-        const bookings = await bookingService.getConsumerBookings(profile.id);
-        setAllBookings(bookings);
-
-        // Recalculate stats
-        const completed = bookings.filter(b => b.status === "delivered");
-        const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
-        const pending = bookings.filter(b => b.status === "pending");
-
-        setCompletedCount(completed.length);
-        setActiveCount(active.length);
-        setPendingCount(pending.length);
-
-        const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
-        setTotalSpent(spent);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete booking",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleSaveBookingDetails = (booking: Booking) => {
     // Create booking receipt/details text
     const bookingDetails = `
@@ -400,6 +360,46 @@ ${"=".repeat(50)}
       title: "💾 Booking Saved",
       description: "Booking details downloaded successfully",
     });
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to permanently delete this booking? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      const success = await bookingService.deleteBooking(bookingId);
+      
+      if (success) {
+        toast({
+          title: "🗑️ Booking Deleted",
+          description: "The booking has been permanently removed",
+        });
+
+        // Refresh bookings
+        const bookings = await bookingService.getConsumerBookings(profile.id);
+        setAllBookings(bookings);
+
+        // Recalculate stats
+        const completed = bookings.filter(b => b.status === "delivered");
+        const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
+        const pending = bookings.filter(b => b.status === "pending");
+
+        setCompletedCount(completed.length);
+        setActiveCount(active.length);
+        setPendingCount(pending.length);
+
+        const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
+        setTotalSpent(spent);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete booking",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLogout = async () => {
