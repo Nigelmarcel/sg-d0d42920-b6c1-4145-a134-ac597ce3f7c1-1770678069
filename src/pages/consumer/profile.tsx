@@ -11,8 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home, LogOut, TruckIcon } from "lucide-react";
+import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home, LogOut, TruckIcon, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { bookingService } from "@/services/bookingService";
+import { useToast } from "@/hooks/use-toast";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 // Define the exact shape returned by the join query
@@ -32,6 +34,7 @@ const STATUS_CONFIG = {
 
 export default function ConsumerProfile() {
   const router = useRouter();
+  const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [bookings, setBookings] = useState<BookingWithTransporter[]>([]);
   const [stats, setStats] = useState({
@@ -139,6 +142,98 @@ export default function ConsumerProfile() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/");
+  };
+
+  const handleSaveBookingDetails = (booking: BookingWithTransporter) => {
+    // Create booking receipt/details text
+    const bookingDetails = `
+VANGO - Booking Receipt
+${"=".repeat(50)}
+
+Booking ID: ${booking.id}
+Date: ${new Date(booking.created_at).toLocaleDateString()}
+Status: ${STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.label.toUpperCase() || booking.status.toUpperCase()}
+
+${"=".repeat(50)}
+PICKUP DETAILS
+${"=".repeat(50)}
+Address: ${booking.pickup_address}
+${booking.scheduled_at ? `Scheduled: ${new Date(booking.scheduled_at).toLocaleString()}` : ""}
+
+${"=".repeat(50)}
+DROPOFF DETAILS
+${"=".repeat(50)}
+Address: ${booking.dropoff_address}
+
+${"=".repeat(50)}
+ITEM DETAILS
+${"=".repeat(50)}
+Type: ${booking.item_type || "N/A"}
+Size: ${booking.item_size?.toUpperCase() || "N/A"}
+${booking.special_instructions ? `Special Instructions: ${booking.special_instructions}` : ""}
+
+${"=".repeat(50)}
+PRICING BREAKDOWN
+${"=".repeat(50)}
+Distance: ${booking.distance_km?.toFixed(2) || "N/A"} km
+Base Price: €${booking.base_price?.toFixed(2) || "0.00"}
+Distance Fee: €${booking.distance_price?.toFixed(2) || "0.00"}
+Extras: €${booking.extras_price?.toFixed(2) || "0.00"}
+${"─".repeat(50)}
+Total: €${booking.total_price?.toFixed(2) || "0.00"}
+
+${booking.transporter?.full_name ? `Transporter: ${booking.transporter.full_name}` : ""}
+${booking.completed_at ? `Completed: ${new Date(booking.completed_at).toLocaleString()}` : ""}
+${booking.cancelled_at ? `Cancelled: ${new Date(booking.cancelled_at).toLocaleString()}` : ""}
+
+${"=".repeat(50)}
+Thank you for using VANGO!
+Questions? Contact us at support@vango.fi
+${"=".repeat(50)}
+    `.trim();
+
+    // Create blob and download
+    const blob = new Blob([bookingDetails], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `VANGO-Booking-${booking.id.slice(0, 8)}-${new Date(booking.created_at).toISOString().split("T")[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "💾 Booking Saved",
+      description: "Booking details downloaded successfully",
+    });
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to permanently delete this booking? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      const success = await bookingService.deleteBooking(bookingId);
+      
+      if (success) {
+        toast({
+          title: "🗑️ Booking Deleted",
+          description: "The booking has been permanently removed",
+        });
+
+        // Reload profile data to refresh bookings list and stats
+        await loadProfileData();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete booking",
+        variant: "destructive",
+      });
+    }
   };
 
   const getInitials = (name: string | null) => {
@@ -386,6 +481,33 @@ export default function ConsumerProfile() {
                                 )}
                               </div>
                             </div>
+
+                            {/* Action Buttons for Completed/Cancelled Bookings */}
+                            {(booking.status === "delivered" || booking.status === "cancelled") && (
+                              <>
+                                <Separator className="my-3" />
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => handleSaveBookingDetails(booking)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 text-blue-600 hover:bg-blue-50 border-blue-200"
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Save Details
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleDeleteBooking(booking.id)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 text-red-600 hover:bg-red-50 border-red-200"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </>
+                            )}
                           </div>
                         );
                       })}
