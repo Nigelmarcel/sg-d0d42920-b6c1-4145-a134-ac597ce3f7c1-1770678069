@@ -11,12 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
 import { profileService, type Profile } from "@/services/profileService";
 import { bookingService, type Booking } from "@/services/bookingService";
-import { 
-  Package, 
-  Clock, 
-  CheckCircle2, 
+import {
+  Package,
+  Clock,
+  CheckCircle2,
   XCircle,
-  MapPin, 
+  MapPin,
   Calendar,
   User,
   Euro,
@@ -600,10 +600,10 @@ ${"=".repeat(50)}
           <div className="mb-6">
             <Button
               onClick={() => router.push('/consumer/book-move')}
-              className="bg-navy-900 hover:bg-navy-950 w-full"
+              className="bg-navy-900 hover:bg-navy-950 w-full h-14 text-lg font-semibold shadow-lg"
             >
-              <Plus className="w-5 h-5 mr-2" />
-              Book Move
+              <Plus className="w-6 h-6 mr-2" />
+              Book a Move
             </Button>
           </div>
 
@@ -923,133 +923,145 @@ ${"=".repeat(50)}
             </div>
           )}
         </div>
-      </div>
 
-      {/* Chat Dialog */}
-      {selectedBooking && profile && chatOpen && (
-        <ChatDialog
-          isOpen={chatOpen}
-          onClose={handleCloseChat}
-          bookingId={selectedBooking.id}
-          otherUserId={selectedBooking.transporter_id!}
-          otherUserName={selectedBooking.transporter_name}
-          otherUserRole="transporter"
-        />
-      )}
+        {/* Floating Action Button - Always Visible */}
+        <button
+          onClick={() => router.push('/consumer/book-move')}
+          className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-navy-900 to-navy-950 hover:from-navy-950 hover:to-black text-white rounded-full p-4 shadow-2xl hover:shadow-navy-900/50 transition-all duration-300 hover:scale-110 group"
+          aria-label="Book a move"
+        >
+          <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" />
+          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-navy-900 text-white px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            Book a Move
+          </span>
+        </button>
 
-      {/* Welcome Dialog */}
-      {showWelcome && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-lg mx-4 p-8">
-            <div className="text-center space-y-6">
-              <div className="flex justify-center">
-                <div className="bg-gradient-to-br from-navy-900 to-gold rounded-full p-4">
-                  <Package className="h-12 w-12 text-white" />
+        {/* Chat Dialog */}
+        {selectedBooking && profile && chatOpen && (
+          <ChatDialog
+            isOpen={chatOpen}
+            onClose={handleCloseChat}
+            bookingId={selectedBooking.id}
+            otherUserId={selectedBooking.transporter_id!}
+            otherUserName={selectedBooking.transporter_name}
+            otherUserRole="transporter"
+          />
+        )}
+
+        {/* Welcome Dialog */}
+        {showWelcome && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <Card className="w-full max-w-lg mx-4 p-8">
+              <div className="text-center space-y-6">
+                <div className="flex justify-center">
+                  <div className="bg-gradient-to-br from-navy-900 to-gold rounded-full p-4">
+                    <Package className="h-12 w-12 text-white" />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold text-gray-900">
-                  Welcome to VANGO! 👋
-                </h2>
-                <p className="text-gray-600">
-                  You're all set to start moving items around Helsinki
-                </p>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left space-y-2">
-                <h3 className="font-semibold text-blue-900 flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5" />
-                  Quick Start Guide
-                </h3>
-                <ul className="space-y-2 text-sm text-blue-800">
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">1.</span>
-                    Click "Book a Move" to create your first booking
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">2.</span>
-                    Enter pickup and dropoff addresses
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">3.</span>
-                    Get matched with a transporter
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">4.</span>
-                    Track your delivery in real-time
-                  </li>
-                </ul>
-              </div>
-
-              <Button
-                onClick={() => setShowWelcome(false)}
-                className="w-full bg-gradient-to-r from-navy-900 to-gold hover:from-navy-950 hover:to-gold/90"
-                size="lg"
-              >
-                Got it, let's start!
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Tracking Map Dialog */}
-      {trackingBooking && trackingOpen && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-          <div className="fixed inset-4 z-50 bg-background rounded-lg shadow-lg overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <div>
-                <h2 className="text-xl font-bold text-foreground">Live Tracking</h2>
-                <p className="text-sm text-muted-foreground">
-                  Real-time location of your delivery
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCloseTracking}
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-
-            {/* Map Content */}
-            <div className="flex-1 overflow-auto p-4">
-              <TrackingMap
-                booking={trackingBooking}
-                userRole="consumer"
-              />
-            </div>
-
-            {/* Footer with booking details */}
-            <div className="p-4 border-t bg-muted/50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {trackingBooking.item_description || "Item"}
+                
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-bold text-gray-900">
+                    Welcome to VANGO! 👋
+                  </h2>
+                  <p className="text-gray-600">
+                    You're all set to start moving items around Helsinki
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Status: {getStatusLabel(trackingBooking.status)}
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left space-y-2">
+                  <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5" />
+                    Quick Start Guide
+                  </h3>
+                  <ul className="space-y-2 text-sm text-blue-800">
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600">1.</span>
+                      Click "Book a Move" to create your first booking
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600">2.</span>
+                      Enter pickup and dropoff addresses
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600">3.</span>
+                      Get matched with a transporter
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-600">4.</span>
+                      Track your delivery in real-time
+                    </li>
+                  </ul>
+                </div>
+
+                <Button
+                  onClick={() => setShowWelcome(false)}
+                  className="w-full bg-gradient-to-r from-navy-900 to-gold hover:from-navy-950 hover:to-gold/90"
+                  size="lg"
+                >
+                  Got it, let's start!
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Tracking Map Dialog */}
+        {trackingBooking && trackingOpen && (
+          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+            <div className="fixed inset-4 z-50 bg-background rounded-lg shadow-lg overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Live Tracking</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Real-time location of your delivery
                   </p>
                 </div>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    handleCloseTracking();
-                    handleOpenChat(trackingBooking);
-                  }}
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCloseTracking}
                 >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Chat with Driver
+                  <X className="h-5 w-5" />
                 </Button>
+              </div>
+
+              {/* Map Content */}
+              <div className="flex-1 overflow-auto p-4">
+                <TrackingMap
+                  booking={trackingBooking}
+                  userRole="consumer"
+                />
+              </div>
+
+              {/* Footer with booking details */}
+              <div className="p-4 border-t bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {trackingBooking.item_description || "Item"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Status: {getStatusLabel(trackingBooking.status)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      handleCloseTracking();
+                      handleOpenChat(trackingBooking);
+                    }}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Chat with Driver
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </ProtectedRoute>
   );
 }
