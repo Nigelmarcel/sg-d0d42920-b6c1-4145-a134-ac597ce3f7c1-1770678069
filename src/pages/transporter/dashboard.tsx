@@ -539,7 +539,7 @@ export default function TransporterDashboard() {
                   <button
                     onClick={toggleOnlineStatus}
                     className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                      isOnline ? "bg-success" : "bg-muted"
+                      isOnline ? "bg-emerald-500" : "bg-muted"
                     }`}
                     aria-label={isOnline ? "Go offline" : "Go online"}
                   >
