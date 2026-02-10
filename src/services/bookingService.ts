@@ -136,7 +136,7 @@ export const bookingService = {
         throw new Error("Could not find pickup address. Please enter a valid address in Helsinki area.");
       }
 
-      if (!geocodingService.validateCoordinates(pickupCoords)) {
+      if (!await geocodingService.validateCoordinates(pickupCoords.lat, pickupCoords.lng)) {
         throw new Error("Invalid pickup coordinates. Please enter a specific street address.");
       }
 
@@ -150,7 +150,7 @@ export const bookingService = {
         throw new Error("Could not find dropoff address. Please enter a valid address in Helsinki area.");
       }
 
-      if (!geocodingService.validateCoordinates(dropoffCoords)) {
+      if (!await geocodingService.validateCoordinates(dropoffCoords.lat, dropoffCoords.lng)) {
         throw new Error("Invalid dropoff coordinates. Please enter a specific street address.");
       }
 

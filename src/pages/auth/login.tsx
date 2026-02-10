@@ -37,10 +37,27 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
+      // Add retry logic for network issues
+      let authData;
+      let authError;
+      let retries = 2;
+
+      while (retries > 0) {
+        try {
+          const result = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
+          authData = result.data;
+          authError = result.error;
+          break;
+        } catch (err) {
+          retries--;
+          if (retries === 0) throw err;
+          // Wait 1 second before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
 
       if (authError) {
         console.error("Auth error:", authError);
@@ -54,7 +71,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (authData.user) {
+      if (authData?.user) {
         // Wait a moment for database operations to complete
         await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -87,7 +104,13 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const error = err as Error;
       console.error("Login error:", error);
-      setError("An unexpected error occurred. Please try again.");
+      
+      // Provide more helpful error messages for network issues
+      if (error.message.includes("Failed to fetch") || error.message.includes("Network")) {
+        setError("Network error. Please check your internet connection and try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }

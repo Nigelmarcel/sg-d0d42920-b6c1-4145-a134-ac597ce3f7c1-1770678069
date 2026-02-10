@@ -86,6 +86,7 @@ export default function BookMove() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
 
   // Form state
   const [pickupAddress, setPickupAddress] = useState("");
@@ -110,7 +111,20 @@ export default function BookMove() {
     const session = await authService.getCurrentSession();
     if (session?.user) {
       setUserId(session.user.id);
+      setUser(session.user);
     }
+  };
+
+  const calculatePriceFromDistance = (distanceKm: number, size: DeliverySize) => {
+    const sizeMultipliers = {
+      small: 1.0,
+      medium: 1.5,
+      large: 2.0
+    };
+
+    const basePrice = 25 * sizeMultipliers[size];
+    const distancePrice = distanceKm * 2; // 2€ per km
+    return Math.round((basePrice + distancePrice) * 100) / 100;
   };
 
   const calculatePrice = async () => {
@@ -180,41 +194,39 @@ export default function BookMove() {
         description: "Please log in to book a move.",
         variant: "destructive"
       });
-      return;
-    }
-
-    if (!pickupAddress || !dropoffAddress || !deliverySize) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!useAsap && (!scheduledDate || !scheduledTime)) {
-      toast({
-        title: "Missing Schedule",
-        description: "Please select a date and time or choose ASAP.",
-        variant: "destructive"
-      });
+      router.push("/auth/login");
       return;
     }
 
     setLoading(true);
 
     try {
-      console.log("🚀 Starting booking creation...");
-      console.log("📍 Geocoding pickup address:", pickupAddress);
-      
+      // Show validation toast
       toast({
         title: "Validating addresses...",
         description: "Please wait while we locate your addresses",
       });
 
-      const pickupCoords = await geocodingService.geocodeAddress(pickupAddress);
+      console.log("🚀 Starting booking creation...");
+      console.log("📍 Geocoding pickup address:", pickupAddress);
+      console.log("📍 Geocoding dropoff address:", dropoffAddress);
+
+      // Validate and geocode pickup address with retry
+      let pickupCoords = null;
+      let retries = 2;
+      
+      while (retries > 0 && !pickupCoords) {
+        pickupCoords = await geocodingService.geocodeAddress(pickupAddress);
+        if (!pickupCoords) {
+          retries--;
+          if (retries > 0) {
+            console.log(`⏳ Retrying pickup geocoding... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          }
+        }
+      }
+
       if (!pickupCoords) {
-        console.error("❌ Failed to geocode pickup address:", pickupAddress);
         toast({
           title: "Pickup Address Not Found",
           description: `Could not locate "${pickupAddress}". Try: "Mannerheimintie 1, Helsinki" or "Kamppi, Helsinki"`,
@@ -225,11 +237,23 @@ export default function BookMove() {
       }
 
       console.log("✅ Pickup coordinates:", pickupCoords);
-      console.log("📍 Geocoding dropoff address:", dropoffAddress);
 
-      const dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
+      // Validate and geocode dropoff address with retry
+      let dropoffCoords = null;
+      retries = 2;
+      
+      while (retries > 0 && !dropoffCoords) {
+        dropoffCoords = await geocodingService.geocodeAddress(dropoffAddress);
+        if (!dropoffCoords) {
+          retries--;
+          if (retries > 0) {
+            console.log(`⏳ Retrying dropoff geocoding... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          }
+        }
+      }
+
       if (!dropoffCoords) {
-        console.error("❌ Failed to geocode dropoff address:", dropoffAddress);
         toast({
           title: "Dropoff Address Not Found",
           description: `Could not locate "${dropoffAddress}". Try: "Kallio, Helsinki" or "Aleksanterinkatu 52, Helsinki"`,
@@ -241,9 +265,32 @@ export default function BookMove() {
 
       console.log("✅ Dropoff coordinates:", dropoffCoords);
 
-      const scheduledAt = useAsap 
-        ? new Date().toISOString()
-        : new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+      // Calculate distance and price
+      const calculatedDistance = geocodingService.calculateDistance(
+        pickupCoords.lat,
+        pickupCoords.lng,
+        dropoffCoords.lat,
+        dropoffCoords.lng
+      );
+
+      const sizeMultipliers = {
+        small: 1.0,
+        medium: 1.5,
+        large: 2.0
+      };
+
+      const basePrice = 25 * sizeMultipliers[deliverySize];
+      const distancePrice = calculatedDistance * 2;
+      const total = basePrice + distancePrice;
+
+      console.log("📊 Distance:", calculatedDistance, "km");
+      console.log("💰 Price:", total, "€");
+
+      // Prepare scheduled time
+      let scheduledAt: string | undefined;
+      if (!useAsap && scheduledDate && scheduledTime) {
+        scheduledAt = `${scheduledDate}T${scheduledTime}:00`;
+      }
 
       console.log("📝 Creating booking with data:", {
         pickupAddress,
