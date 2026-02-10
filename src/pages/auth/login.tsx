@@ -37,54 +37,107 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // Log diagnostic information
+      console.log("🔐 Login attempt starting...");
+      console.log("📍 Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log("🔑 Anon Key exists:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      
+      // Test basic Supabase connectivity first
+      console.log("🧪 Testing Supabase connectivity...");
+      const { data: testData, error: testError } = await supabase
+        .from("profiles")
+        .select("id")
+        .limit(1);
+      
+      if (testError) {
+        console.error("❌ Supabase connectivity test failed:", testError);
+        setError("Cannot connect to database. Please check your internet connection and try again.");
+        return;
+      }
+      
+      console.log("✅ Supabase connectivity test passed");
+
       // Add retry logic for network issues
       let authData;
       let authError;
-      let retries = 2;
+      let retries = 3;
+      let lastError;
 
       while (retries > 0) {
         try {
+          console.log(`🔄 Auth attempt ${4 - retries}/3`);
+          
           const result = await supabase.auth.signInWithPassword({
             email: formData.email,
             password: formData.password,
           });
+          
           authData = result.data;
           authError = result.error;
-          break;
-        } catch (err) {
+          
+          if (!authError) {
+            console.log("✅ Auth successful");
+            break;
+          }
+          
+          lastError = authError;
+          console.warn(`⚠️ Auth attempt ${4 - retries} failed:`, authError.message);
+          
+          // Don't retry on credential errors
+          if (authError.message.includes("Invalid login credentials") || 
+              authError.message.includes("Email not confirmed")) {
+            break;
+          }
+          
           retries--;
-          if (retries === 0) throw err;
-          // Wait 1 second before retry
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          if (retries > 0) {
+            console.log(`⏳ Waiting 1 second before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (err) {
+          lastError = err as Error;
+          console.error(`❌ Network error on attempt ${4 - retries}:`, err);
+          retries--;
+          
+          if (retries > 0) {
+            console.log(`⏳ Waiting 1 second before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
       }
 
-      if (authError) {
-        console.error("Auth error:", authError);
-        if (authError.message.includes("Email not confirmed")) {
+      if (authError || !authData?.user) {
+        console.error("❌ Final auth error:", authError || lastError);
+        
+        if (authError?.message.includes("Email not confirmed")) {
           setError("Please confirm your email address before logging in. Check your inbox for the confirmation link.");
-        } else if (authError.message.includes("Invalid login credentials")) {
+        } else if (authError?.message.includes("Invalid login credentials")) {
           setError("Invalid email or password. Please check your credentials and try again.");
         } else {
-          setError(authError.message);
+          const errorMessage = authError?.message || (lastError as Error)?.message || "Unknown error";
+          setError(`Login failed: ${errorMessage}. This might be a network or configuration issue. Please try again or contact support.`);
         }
         return;
       }
 
       if (authData?.user) {
+        console.log("✅ User authenticated:", authData.user.id);
+        
         // Wait a moment for database operations to complete
         await new Promise(resolve => setTimeout(resolve, 300));
 
         // Fetch user profile to get role
+        console.log("📋 Fetching user profile...");
         const profile = await profileService.getProfile(authData.user.id);
 
         if (!profile) {
+          console.error("❌ Profile not found for user:", authData.user.id);
           setError("Profile not found. Please try signing up again or contact support.");
           await supabase.auth.signOut();
           return;
         }
 
-        console.log("Login successful. Role:", profile.role);
+        console.log("✅ Profile found. Role:", profile.role);
 
         // Redirect based on role
         switch (profile.role) {
@@ -103,13 +156,12 @@ export default function LoginPage() {
       }
     } catch (err: unknown) {
       const error = err as Error;
-      console.error("Login error:", error);
+      console.error("💥 Unexpected error during login:", error);
       
-      // Provide more helpful error messages for network issues
       if (error.message.includes("Failed to fetch") || error.message.includes("Network")) {
-        setError("Network error. Please check your internet connection and try again.");
+        setError("Network error. Please check your internet connection. If the issue persists, try: 1) Clearing browser cache, 2) Disabling VPN/ad blockers, 3) Using a different browser.");
       } else {
-        setError("An unexpected error occurred. Please try again.");
+        setError(`An unexpected error occurred: ${error.message}. Please try again or contact support.`);
       }
     } finally {
       setIsLoading(false);
