@@ -407,14 +407,29 @@ export type Database = {
       }
       transporter_applications: {
         Row: {
+          address_city: string | null
+          address_postal_code: string | null
+          address_street: string | null
           admin_notes: string | null
+          background_check_date: string | null
+          background_check_status: string | null
           bank_account_iban: string
+          compliance_status: string | null
           created_at: string | null
+          documents_verified_date: string | null
+          driver_license_expiry: string | null
+          driver_license_number: string | null
           driver_license_url: string
+          driver_license_validated: boolean | null
           id: string
+          insurance_company: string | null
+          insurance_expiry: string | null
+          insurance_policy_number: string | null
           insurance_url: string
+          insurance_validated: boolean | null
           reviewed_at: string | null
           reviewed_by: string | null
+          social_security_number: string | null
           status: Database["public"]["Enums"]["application_status"] | null
           submitted_at: string | null
           user_id: string
@@ -422,16 +437,32 @@ export type Database = {
           van_make: string
           van_model: string
           van_year: number
+          vehicle_registration_url: string | null
         }
         Insert: {
+          address_city?: string | null
+          address_postal_code?: string | null
+          address_street?: string | null
           admin_notes?: string | null
+          background_check_date?: string | null
+          background_check_status?: string | null
           bank_account_iban: string
+          compliance_status?: string | null
           created_at?: string | null
+          documents_verified_date?: string | null
+          driver_license_expiry?: string | null
+          driver_license_number?: string | null
           driver_license_url: string
+          driver_license_validated?: boolean | null
           id?: string
+          insurance_company?: string | null
+          insurance_expiry?: string | null
+          insurance_policy_number?: string | null
           insurance_url: string
+          insurance_validated?: boolean | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          social_security_number?: string | null
           status?: Database["public"]["Enums"]["application_status"] | null
           submitted_at?: string | null
           user_id: string
@@ -439,16 +470,32 @@ export type Database = {
           van_make: string
           van_model: string
           van_year: number
+          vehicle_registration_url?: string | null
         }
         Update: {
+          address_city?: string | null
+          address_postal_code?: string | null
+          address_street?: string | null
           admin_notes?: string | null
+          background_check_date?: string | null
+          background_check_status?: string | null
           bank_account_iban?: string
+          compliance_status?: string | null
           created_at?: string | null
+          documents_verified_date?: string | null
+          driver_license_expiry?: string | null
+          driver_license_number?: string | null
           driver_license_url?: string
+          driver_license_validated?: boolean | null
           id?: string
+          insurance_company?: string | null
+          insurance_expiry?: string | null
+          insurance_policy_number?: string | null
           insurance_url?: string
+          insurance_validated?: boolean | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          social_security_number?: string | null
           status?: Database["public"]["Enums"]["application_status"] | null
           submitted_at?: string | null
           user_id?: string
@@ -456,6 +503,7 @@ export type Database = {
           van_make?: string
           van_model?: string
           van_year?: number
+          vehicle_registration_url?: string | null
         }
         Relationships: [
           {
