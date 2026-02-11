@@ -1286,29 +1286,29 @@ export default function AdminDashboard() {
                             <div className="col-span-2">
                               <label className="text-xs font-medium text-gray-500">Consumer</label>
                               <p className="text-sm">{job.consumer?.full_name || "N/A"}</p>
-                              <p className="text-xs text-gray-500">{job.consumer?.email}</p>
+                              <p className="text-xs text-gray-500">{job.consumer?.email || "N/A"}</p>
                             </div>
                             <div className="col-span-2">
                               <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
                                 Pickup Location
                               </label>
-                              <p className="text-sm">{job.pickup_address}</p>
+                              <p className="text-sm">{job.pickup_address || "N/A"}</p>
                             </div>
                             <div className="col-span-2">
                               <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
                                 Dropoff Location
                               </label>
-                              <p className="text-sm">{job.dropoff_address}</p>
+                              <p className="text-sm">{job.dropoff_address || "N/A"}</p>
                             </div>
                             <div>
                               <label className="text-xs font-medium text-gray-500">Item Type</label>
-                              <p className="text-sm capitalize">{job.item_type.replace(/_/g, " ")}</p>
+                              <p className="text-sm capitalize">{(job.item_type || "N/A").replace(/_/g, " ")}</p>
                             </div>
                             <div>
                               <label className="text-xs font-medium text-gray-500">Item Size</label>
-                              <p className="text-sm capitalize">{job.item_size}</p>
+                              <p className="text-sm capitalize">{job.item_size || "N/A"}</p>
                             </div>
                             {job.special_instructions && (
                               <div className="col-span-2">
