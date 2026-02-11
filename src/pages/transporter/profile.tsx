@@ -279,9 +279,20 @@ export default function TransporterProfile() {
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-navy-900">Profile Settings</h1>
-              <p className="text-gray-600 mt-2">Manage your personal information and vehicle details</p>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/transporter/dashboard")}
+                className="hover:bg-navy-100 dark:hover:bg-navy-800"
+                title="Home"
+              >
+                <Home className="h-5 w-5 text-navy-600 dark:text-navy-400" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-navy-900">Profile Settings</h1>
+                <p className="text-gray-600 mt-2">Manage your personal information and vehicle details</p>
+              </div>
             </div>
             <Badge variant={application?.status === "approved" ? "default" : "secondary"}>
               {application?.status === "approved" ? "✓ Verified Transporter" : "Pending Verification"}
