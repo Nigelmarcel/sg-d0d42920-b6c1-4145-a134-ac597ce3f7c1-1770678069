@@ -46,6 +46,9 @@ import {
 import { ChatDialog } from "@/components/ChatDialog";
 import { TrackingMap } from "@/components/TrackingMap";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 type StatusFilter = "all" | "pending" | "accepted" | "in_transit" | "delivered" | "cancelled";
 
@@ -87,6 +90,12 @@ export default function ConsumerDashboard() {
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [trackingBooking, setTrackingBooking] = useState<Booking | null>(null);
 
+  // Review state
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+
   // Fetch user profile
   useEffect(() => {
     const fetchProfile = async () => {
@@ -123,40 +132,39 @@ export default function ConsumerDashboard() {
     fetchProfile();
   }, [router, toast]);
 
+  const fetchBookings = async () => {
+    if (!profile?.id) return;
+    try {
+      setLoading(true);
+      const bookings = await bookingService.getConsumerBookings(profile.id);
+      setAllBookings(bookings);
+      setFilteredBookings(bookings);
+
+      // Calculate stats
+      const completed = bookings.filter(b => b.status === "delivered");
+      const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
+      const pending = bookings.filter(b => b.status === "pending");
+
+      setCompletedCount(completed.length);
+      setActiveCount(active.length);
+      setPendingCount(pending.length);
+
+      const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
+      setTotalSpent(spent);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load bookings",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch bookings and stats
   useEffect(() => {
-    if (!profile?.id) return;
-
-    const fetchBookings = async () => {
-      try {
-        setLoading(true);
-        const bookings = await bookingService.getConsumerBookings(profile.id);
-        setAllBookings(bookings);
-        setFilteredBookings(bookings);
-
-        // Calculate stats
-        const completed = bookings.filter(b => b.status === "delivered");
-        const active = bookings.filter(b => ["accepted", "in_transit"].includes(b.status));
-        const pending = bookings.filter(b => b.status === "pending");
-
-        setCompletedCount(completed.length);
-        setActiveCount(active.length);
-        setPendingCount(pending.length);
-
-        const spent = completed.reduce((sum, b) => sum + (b.total_price || 0), 0);
-        setTotalSpent(spent);
-      } catch (error) {
-        console.error("Error fetching bookings:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load bookings",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchBookings();
   }, [profile, toast]);
 
@@ -405,18 +413,59 @@ ${"=".repeat(50)}
 
   const deleteBooking = async (bookingId: string) => {
     try {
-      await bookingService.deleteBooking(bookingId);
-      toast({
-        title: "Success",
-        description: "Booking deleted successfully",
-      });
-      fetchBookings();
+      const success = await bookingService.deleteBooking(bookingId);
+      if (success) {
+        toast({
+          title: "Success",
+          description: "Booking deleted successfully",
+        });
+        fetchBookings();
+      } else {
+        throw new Error("Failed to delete booking");
+      }
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to delete booking",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleReviewSubmit = async () => {
+    if (!reviewBooking) return;
+    if (rating === 0) {
+      toast({
+        title: "Rating required",
+        description: "Please select a star rating",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      const success = await bookingService.submitReview(reviewBooking.id, rating, reviewText);
+      if (success) {
+        toast({
+          title: "Review Submitted",
+          description: "Thank you for your feedback!",
+        });
+        setReviewBooking(null);
+        setRating(0);
+        setReviewText("");
+        fetchBookings();
+      } else {
+        throw new Error("Failed to submit review");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit review",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -1145,6 +1194,53 @@ ${"=".repeat(50)}
               </div>
             </div>
           )}
+
+          {/* Review Dialog */}
+          <Dialog open={!!reviewBooking} onOpenChange={(open) => !open && setReviewBooking(null)}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Leave a Review</DialogTitle>
+                <DialogDescription>
+                  How was your experience with this move? Your feedback helps us improve.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="flex flex-col items-center gap-2">
+                  <Label>Rate your experience</Label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setRating(star)}
+                        className={`text-2xl transition-colors ${
+                          star <= rating ? "text-yellow-400" : "text-gray-200"
+                        }`}
+                        type="button"
+                      >
+                        <Star className={`h-8 w-8 ${star <= rating ? "fill-yellow-400" : ""}`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="review">Your Review (Optional)</Label>
+                  <Textarea
+                    id="review"
+                    value={reviewText}
+                    onChange={(e) => setReviewText(e.target.value)}
+                    placeholder="Tell us about your experience..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setReviewBooking(null)}>Cancel</Button>
+                <Button onClick={handleReviewSubmit} disabled={submittingReview}>
+                  {submittingReview ? "Submitting..." : "Submit Review"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </div>
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-3">

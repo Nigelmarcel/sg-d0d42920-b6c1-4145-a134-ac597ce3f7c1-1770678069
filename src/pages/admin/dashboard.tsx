@@ -36,7 +36,8 @@ import {
   UserCheck,
   Filter,
   Ban,
-  Pencil
+  Pencil,
+  Star
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { formatDistanceToNow } from "date-fns";
@@ -883,12 +884,13 @@ export default function AdminDashboard() {
 
           {/* Tabs */}
           <Tabs defaultValue="activity" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="activity">Feed</TabsTrigger>
               <TabsTrigger value="roster">Roster</TabsTrigger>
               <TabsTrigger value="transporters">Transporters ({stats.totalTransporters})</TabsTrigger>
               <TabsTrigger value="consumers">Consumers ({stats.totalConsumers})</TabsTrigger>
               <TabsTrigger value="applications">Applications ({stats.pendingApplications})</TabsTrigger>
+              <TabsTrigger value="reviews">Reviews</TabsTrigger>
             </TabsList>
 
             {/* Activity Feed Tab */}
@@ -1477,8 +1479,8 @@ export default function AdminDashboard() {
             <TabsContent value="reviews">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Reviews</CardTitle>
-                  <CardDescription>View and manage consumer reviews</CardDescription>
+                  <CardTitle className="text-lg">Consumer Reviews</CardTitle>
+                  <CardDescription>View and manage all consumer reviews for completed deliveries</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -1487,7 +1489,7 @@ export default function AdminDashboard() {
                       <div className="flex-1 relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
-                          placeholder="Search reviews by consumer or rating..."
+                          placeholder="Search by consumer or transporter..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                           className="pl-10"
@@ -1496,74 +1498,102 @@ export default function AdminDashboard() {
                       <Select value={bookingFilter} onValueChange={setBookingFilter}>
                         <SelectTrigger className="w-48">
                           <Filter className="h-4 w-4 mr-2" />
-                          <SelectValue />
+                          <SelectValue placeholder="Filter by rating" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Statuses</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="accepted">Accepted</SelectItem>
-                          <SelectItem value="en_route_pickup">En Route (Pickup)</SelectItem>
-                          <SelectItem value="picked_up">Picked Up</SelectItem>
-                          <SelectItem value="en_route_dropoff">En Route (Dropoff)</SelectItem>
-                          <SelectItem value="delivered">Delivered</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="all">All Ratings</SelectItem>
+                          <SelectItem value="5">⭐⭐⭐⭐⭐ 5 Stars</SelectItem>
+                          <SelectItem value="4">⭐⭐⭐⭐ 4 Stars</SelectItem>
+                          <SelectItem value="3">⭐⭐⭐ 3 Stars</SelectItem>
+                          <SelectItem value="2">⭐⭐ 2 Stars</SelectItem>
+                          <SelectItem value="1">⭐ 1 Star</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {/* Bookings Table */}
-                    <div className="border rounded-lg">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>ID</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Consumer</TableHead>
-                            <TableHead>Transporter</TableHead>
-                            <TableHead>Route</TableHead>
-                            <TableHead>Price</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredBookings.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                                No bookings found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            filteredBookings.map((booking) => (
-                              <TableRow key={booking.id}>
-                                <TableCell className="font-mono text-xs">{booking.id.slice(0, 8)}</TableCell>
-                                <TableCell className="text-sm">
-                                  {new Date(booking.created_at).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                  {booking.consumer?.full_name || "N/A"}
-                                  <div className="text-xs text-gray-500">{booking.consumer?.email}</div>
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                  {booking.transporter?.full_name || "Unassigned"}
-                                  {booking.transporter?.email && (
-                                    <div className="text-xs text-gray-500">{booking.transporter.email}</div>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-sm max-w-xs">
-                                  <div className="truncate">{booking.pickup_address}</div>
-                                  <div className="text-xs text-gray-500 truncate">→ {booking.dropoff_address}</div>
-                                </TableCell>
-                                <TableCell className="font-semibold">€{Number(booking.total_price).toFixed(2)}</TableCell>
-                                <TableCell>
-                                  <Badge variant={getStatusBadgeVariant(booking.status)}>
-                                    {booking.status.replace(/_/g, " ")}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
+                    {/* Reviews List */}
+                    <div className="space-y-4">
+                      {filteredBookings
+                        .filter(b => b.consumer_rating && b.consumer_rating > 0)
+                        .filter(b => {
+                          if (bookingFilter === "all") return true;
+                          return b.consumer_rating === parseInt(bookingFilter);
+                        })
+                        .map((booking) => (
+                          <Card key={booking.id} className="border-l-4 border-l-gold">
+                            <CardContent className="pt-6">
+                              <div className="space-y-4">
+                                {/* Header */}
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <div className="flex items-center">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                          <Star
+                                            key={star}
+                                            className={`h-5 w-5 ${
+                                              star <= (booking.consumer_rating || 0)
+                                                ? "text-yellow-400 fill-yellow-400"
+                                                : "text-gray-300"
+                                            }`}
+                                          />
+                                        ))}
+                                      </div>
+                                      <span className="text-lg font-bold text-gold">
+                                        {booking.consumer_rating}/5
+                                      </span>
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      <span className="font-medium">Consumer:</span> {booking.consumer?.full_name || "N/A"}
+                                      <span className="mx-2">•</span>
+                                      <span className="font-medium">Transporter:</span> {booking.transporter?.full_name || "N/A"}
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Booking #{booking.id.slice(0, 8)} • {new Date(booking.created_at).toLocaleDateString()}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Review Text */}
+                                {booking.consumer_review && (
+                                  <div className="bg-muted/50 rounded-lg p-4">
+                                    <p className="text-sm text-foreground italic">
+                                      "{booking.consumer_review}"
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Booking Details */}
+                                <div className="grid grid-cols-2 gap-4 pt-3 border-t">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Pickup</p>
+                                    <p className="text-sm font-medium">{booking.pickup_address}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Dropoff</p>
+                                    <p className="text-sm font-medium">{booking.dropoff_address}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Item</p>
+                                    <p className="text-sm font-medium">{booking.item_type || "N/A"} - {booking.item_size}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Price</p>
+                                    <p className="text-sm font-bold text-green-600">€{Number(booking.total_price).toFixed(2)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+
+                      {filteredBookings.filter(b => b.consumer_rating && b.consumer_rating > 0).length === 0 && (
+                        <div className="text-center py-12 text-gray-500">
+                          <Star className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                          <p>No reviews found</p>
+                          <p className="text-sm mt-2">Consumer reviews will appear here after deliveries are completed</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

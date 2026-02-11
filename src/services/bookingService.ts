@@ -415,19 +415,39 @@ export const bookingService = {
     }
   },
 
+  // Submit a review for a booking
+  async submitReview(bookingId: string, rating: number, review: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          consumer_rating: rating,
+          consumer_review: review
+        })
+        .eq("id", bookingId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      return false;
+    }
+  },
+
   /**
    * Permanently delete a completed or cancelled booking
    */
-  async deleteBooking(bookingId: string): Promise<void> {
-    const { error } = await this.supabase
+  async deleteBooking(bookingId: string): Promise<boolean> {
+    const { error } = await supabase
       .from("bookings")
       .delete()
       .eq("id", bookingId);
 
     if (error) {
       console.error("Error deleting booking:", error);
-      throw new Error(error.message || "Failed to delete booking");
+      return false;
     }
+    return true;
   },
 
   async updateStatus(bookingId: string, status: BookingStatus) {
