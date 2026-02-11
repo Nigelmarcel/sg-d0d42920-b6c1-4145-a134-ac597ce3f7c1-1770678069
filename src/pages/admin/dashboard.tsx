@@ -1411,8 +1411,8 @@ export default function AdminDashboard() {
                               <p className="font-mono text-sm">{job.id.slice(0, 8)}</p>
                             </div>
                             <div>
-                              <label className="text-xs font-medium text-gray-500">Completed Date</label>
-                              <p className="text-sm">{new Date(job.updated_at).toLocaleDateString()}</p>
+                              <label className="text-xs font-medium text-gray-500">Date</label>
+                              <p className="text-sm">{new Date(job.created_at).toLocaleDateString()}</p>
                             </div>
                             <div>
                               <label className="text-xs font-medium text-gray-500">Consumer</label>
