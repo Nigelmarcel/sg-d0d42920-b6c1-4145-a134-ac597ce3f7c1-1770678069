@@ -58,6 +58,8 @@ export default function TransporterProfile() {
     full_name: "",
     phone: "",
   });
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [savedBookings, setSavedBookings] = useState<BookingWithConsumer[]>([]);
 
   useEffect(() => {
     loadProfileData();
@@ -255,6 +257,74 @@ export default function TransporterProfile() {
       toast({
         title: "Error",
         description: "Failed to update status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveBooking = async (bookingId: string, status: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update a booking",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status })
+        .eq("id", bookingId);
+
+      if (error) throw error;
+
+      toast({
+        title: "✅ Booking Updated",
+        description: `Booking ${bookingId} status updated to ${status}`,
+      });
+    } catch (error) {
+      console.error("Error updating booking status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update booking status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to delete a booking",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("id", bookingId);
+
+      if (error) throw error;
+
+      toast({
+        title: "✅ Booking Deleted",
+        description: `Booking ${bookingId} has been deleted`,
+      });
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete booking. Please try again.",
         variant: "destructive",
       });
     }
