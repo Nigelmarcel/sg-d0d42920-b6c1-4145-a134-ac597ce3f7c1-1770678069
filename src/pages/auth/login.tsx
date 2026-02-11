@@ -70,12 +70,14 @@ export default function LoginPage() {
       if (error) {
         // Handle email not confirmed error specifically
         if (error.message.toLowerCase().includes("email not confirmed")) {
+          console.log("🔍 DEBUG: Email not confirmed error detected");
           setError(
             "⚠️ Email Not Confirmed\n\n" +
             "Please check your inbox and click the confirmation link we sent you.\n\n" +
             "📧 Didn't receive the email? Check your spam folder or click 'Resend Confirmation' below."
           );
           setIsLoading(false);
+          console.log("🔍 DEBUG: Error state set, showing alert to user");
           return;
         }
         
