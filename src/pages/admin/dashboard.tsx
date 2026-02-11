@@ -1513,14 +1513,23 @@ export default function AdminDashboard() {
 
                     {/* Reviews List */}
                     <div className="space-y-4">
-                      {filteredBookings
+                      {allBookings
                         .filter(b => b.consumer_rating && b.consumer_rating > 0)
                         .filter(b => {
                           if (bookingFilter === "all") return true;
                           return b.consumer_rating === parseInt(bookingFilter);
                         })
+                        .filter(b => {
+                          if (searchTerm === "") return true;
+                          return (
+                            b.consumer?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            b.consumer?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            b.transporter?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            b.transporter?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+                          );
+                        })
                         .map((booking) => (
-                          <Card key={booking.id} className="border-l-4 border-l-gold">
+                          <Card key={booking.id} className="border-l-4 border-l-yellow-500">
                             <CardContent className="pt-6">
                               <div className="space-y-4">
                                 {/* Header */}
@@ -1539,14 +1548,14 @@ export default function AdminDashboard() {
                                           />
                                         ))}
                                       </div>
-                                      <span className="text-lg font-bold text-gold">
+                                      <span className="text-lg font-bold text-yellow-600">
                                         {booking.consumer_rating}/5
                                       </span>
                                     </div>
                                     <div className="text-sm text-gray-600">
-                                      <span className="font-medium">Consumer:</span> {booking.consumer?.full_name || "N/A"}
+                                      <span className="font-medium">Consumer:</span> {booking.consumer?.full_name || booking.consumer?.email || "N/A"}
                                       <span className="mx-2">•</span>
-                                      <span className="font-medium">Transporter:</span> {booking.transporter?.full_name || "N/A"}
+                                      <span className="font-medium">Transporter:</span> {booking.transporter?.full_name || booking.transporter?.email || "Unassigned"}
                                     </div>
                                     <div className="text-xs text-gray-500 mt-1">
                                       Booking #{booking.id.slice(0, 8)} • {new Date(booking.created_at).toLocaleDateString()}
@@ -1558,7 +1567,7 @@ export default function AdminDashboard() {
                                 {booking.consumer_review && (
                                   <div className="bg-muted/50 rounded-lg p-4">
                                     <p className="text-sm text-foreground italic">
-                                      "{booking.consumer_review}"
+                                      &quot;{booking.consumer_review}&quot;
                                     </p>
                                   </div>
                                 )}
@@ -1587,7 +1596,7 @@ export default function AdminDashboard() {
                           </Card>
                         ))}
 
-                      {filteredBookings.filter(b => b.consumer_rating && b.consumer_rating > 0).length === 0 && (
+                      {allBookings.filter(b => b.consumer_rating && b.consumer_rating > 0).length === 0 && (
                         <div className="text-center py-12 text-gray-500">
                           <Star className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                           <p>No reviews found</p>
