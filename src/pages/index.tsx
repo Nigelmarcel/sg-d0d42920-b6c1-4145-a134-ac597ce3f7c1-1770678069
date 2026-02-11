@@ -140,7 +140,7 @@ export default function Home() {
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto pt-12">
               <div className="text-center">
-                <div className="text-3xl font-bold text-navy-900">2h</div>
+                <div className="text-3xl font-bold text-navy-900">15 min</div>
                 <div className="text-sm text-gray-600">Avg. Response</div>
               </div>
               <div className="text-center border-x border-gray-200">
