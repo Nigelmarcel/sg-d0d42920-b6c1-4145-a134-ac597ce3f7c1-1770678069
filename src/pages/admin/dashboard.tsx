@@ -35,7 +35,8 @@ import {
   CreditCard,
   UserCheck,
   Filter,
-  Ban
+  Ban,
+  Pencil
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { formatDistanceToNow } from "date-fns";
@@ -141,6 +142,10 @@ export default function AdminDashboard() {
   // Delete Job State
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // Delete User State
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [deleteUserConfirmOpen, setDeleteUserConfirmOpen] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -322,7 +327,7 @@ export default function AdminDashboard() {
             total_bookings: bookings?.length || 0,
             total_earnings: 0,
             average_rating: 0,
-            status: "offline", // Default for consumers
+            status: "offline" as const,
             current_job: null
           } as UserWithStats;
         })
@@ -338,17 +343,14 @@ export default function AdminDashboard() {
       .order("created_at", { ascending: false });
 
     if (transporterData) {
-      // Transform data
       const transportersWithStats = await Promise.all(
         transporterData.map(async (user: any) => {
-          // Get stats
           const { count: totalBookings } = await supabase
             .from("bookings")
             .select("*", { count: "exact", head: true })
             .eq("transporter_id", user.id)
             .eq("status", "delivered");
 
-          // Calculate earnings (75% of total price)
           const { data: bookings } = await supabase
             .from("bookings")
             .select("total_price")
@@ -360,11 +362,9 @@ export default function AdminDashboard() {
             0
           );
 
-          // Determine status and current job
           let status: "online" | "busy" | "offline" = user.is_online ? "online" : "offline";
           let currentJob = null;
 
-          // Check for active job
           const { data: activeJob } = await supabase
             .from("bookings")
             .select("id, pickup_address, dropoff_address, status")
@@ -379,10 +379,10 @@ export default function AdminDashboard() {
 
           return {
             ...user,
-            phone_number: user.phone_number, // Ensure this is mapped if it exists on profile
+            phone_number: user.phone_number,
             total_bookings: totalBookings,
             total_earnings: totalEarnings,
-            average_rating: 0, // Removed from UI but kept in type for compatibility if needed
+            average_rating: 0,
             status,
             current_job: currentJob
           };
@@ -395,7 +395,6 @@ export default function AdminDashboard() {
   async function loadActivityData() {
     const activities: ActivityLog[] = [];
 
-    // Recent signups
     const { data: recentUsers } = await supabase
       .from("profiles")
       .select("*")
@@ -413,7 +412,6 @@ export default function AdminDashboard() {
       });
     });
 
-    // Recent bookings
     const { data: recentBookings } = await supabase
       .from("bookings")
       .select(`
@@ -447,7 +445,6 @@ export default function AdminDashboard() {
       }
     });
 
-    // Recent applications
     const { data: recentApps } = await supabase
       .from("transporter_applications")
       .select("*")
@@ -465,7 +462,6 @@ export default function AdminDashboard() {
       });
     });
 
-    // Sort by timestamp and take top 20
     activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     setRecentActivity(activities.slice(0, 20));
   }
@@ -545,7 +541,6 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      // Refresh data based on context
       if (selectedTransporterId && transporterJobsOpen) {
         await loadTransporterJobs(selectedTransporterId);
       }
@@ -560,6 +555,33 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Error deleting job:", error);
       alert("Failed to delete job. Please try again.");
+    }
+  }
+
+  async function handleDeleteUser(user: UserWithStats) {
+    setDeleteUserId(user.id);
+    setDeleteUserConfirmOpen(true);
+  }
+
+  async function confirmDeleteUser() {
+    if (!deleteUserId) return;
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", deleteUserId);
+
+      if (error) throw error;
+
+      await loadUsersData();
+      setUserDetailsOpen(false);
+      setSelectedUser(null);
+      setDeleteUserConfirmOpen(false);
+      setDeleteUserId(null);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      alert("Failed to delete user. Please try again.");
     }
   }
 
@@ -1407,7 +1429,6 @@ export default function AdminDashboard() {
                               </TableCell>
                               <TableCell>
                                 <div className="text-sm">
-                                  {/* Placeholder for real location tracking */}
                                   <div className="flex items-center gap-1 text-gray-500">
                                     <MapPin className="h-3 w-3" />
                                     <span>Unknown</span>
@@ -1456,31 +1477,32 @@ export default function AdminDashboard() {
           </Tabs>
 
           {/* User Details Dialog */}
-          <Dialog open={!!selectedUser} onOpenChange={() => {
-            setSelectedUser(null);
-            setSelectedUserApplication(null);
-          }}>
+          <Dialog open={userDetailsOpen} onOpenChange={setUserDetailsOpen}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               {selectedUser && (
                 <div className="space-y-6">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <DialogHeader>
+                  <DialogHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
                         <DialogTitle className="text-2xl font-bold">
                           {selectedUser.full_name || "Unnamed User"}
                         </DialogTitle>
-                      </DialogHeader>
+                        <Badge variant={selectedUser.role === "transporter" ? "default" : "secondary"} className="mt-2">
+                          {selectedUser.role}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => alert("Edit functionality coming soon")}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteUser(selectedUser)} className="text-red-600 hover:text-red-700">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={selectedUser.role === "transporter" ? "default" : "secondary"}>
-                        {selectedUser.role}
-                      </Badge>
-                      <Button variant="ghost" size="sm" onClick={() => setUserDetailsOpen(false)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  </DialogHeader>
 
                   {/* Personal Information */}
                   <div className="space-y-4">
@@ -1828,6 +1850,41 @@ export default function AdminDashboard() {
             </DialogContent>
           </Dialog>
 
+          {/* Delete User Confirmation Dialog */}
+          <Dialog open={deleteUserConfirmOpen} onOpenChange={setDeleteUserConfirmOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>⚠️ Delete User Account?</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this user account?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">User:</span>
+                  <span>{selectedUser?.full_name || selectedUser?.email || "Unknown"}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  This action cannot be undone and will permanently remove the user and all associated data from the database.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteUserConfirmOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmDeleteUser}
+                >
+                  Delete User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Transporter Jobs Dialog */}
           <Dialog open={transporterJobsOpen} onOpenChange={setTransporterJobsOpen}>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -1897,7 +1954,6 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                           
-                          {/* Save and Delete Buttons */}
                           <div className="border-t pt-4 mt-4">
                             <div className="flex gap-2">
                               <Button
@@ -1996,7 +2052,6 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                           
-                          {/* Save and Delete Buttons */}
                           <div className="border-t pt-4 mt-4">
                             <div className="flex gap-2">
                               <Button

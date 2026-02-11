@@ -643,19 +643,18 @@ export default function TransporterProfile() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>Vehicle Information</CardTitle>
-                      <CardDescription>
-                        {isEditingVehicle ? "Update your vehicle details" : "Your registered vehicle details"}
-                      </CardDescription>
+                      <CardTitle className="flex items-center gap-2">
+                        <Truck className="h-5 w-5" />
+                        Vehicle Information
+                      </CardTitle>
+                      <CardDescription>Complete trip records for official reporting</CardDescription>
                     </div>
-                    {application && !isEditingVehicle && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsEditingVehicle(true)}
-                      >
-                        Edit Info
-                      </Button>
-                    )}
+                    <Button
+                      onClick={() => setIsEditingVehicle(!isEditingVehicle)}
+                      variant={isEditingVehicle ? "outline" : "default"}
+                    >
+                      {isEditingVehicle ? "Cancel" : "Edit Info"}
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -663,9 +662,11 @@ export default function TransporterProfile() {
                     isEditingVehicle ? (
                       // Edit Mode
                       <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">Vehicle Information</h3>
+                        
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="van_make">Van Make</Label>
+                          <div>
+                            <Label htmlFor="van_make">Van Make *</Label>
                             <Input
                               id="van_make"
                               value={vehicleFormData.van_make}
@@ -674,8 +675,8 @@ export default function TransporterProfile() {
                             />
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="van_model">Van Model</Label>
+                          <div>
+                            <Label htmlFor="van_model">Van Model *</Label>
                             <Input
                               id="van_model"
                               value={vehicleFormData.van_model}

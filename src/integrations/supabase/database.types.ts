@@ -441,6 +441,7 @@ export type Database = {
           van_register_number: string | null
           van_year: number
           vehicle_registration_url: string | null
+          vehicle_type: Database["public"]["Enums"]["vehicle_type"] | null
         }
         Insert: {
           address_city?: string | null
@@ -477,6 +478,7 @@ export type Database = {
           van_register_number?: string | null
           van_year: number
           vehicle_registration_url?: string | null
+          vehicle_type?: Database["public"]["Enums"]["vehicle_type"] | null
         }
         Update: {
           address_city?: string | null
@@ -513,6 +515,7 @@ export type Database = {
           van_register_number?: string | null
           van_year?: number
           vehicle_registration_url?: string | null
+          vehicle_type?: Database["public"]["Enums"]["vehicle_type"] | null
         }
         Relationships: [
           {
@@ -592,6 +595,7 @@ export type Database = {
         | "home_move"
       payment_status: "pending" | "succeeded" | "failed" | "refunded"
       user_role: "consumer" | "transporter" | "admin"
+      vehicle_type: "van" | "stw" | "truck"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -739,6 +743,7 @@ export const Constants = {
       ],
       payment_status: ["pending", "succeeded", "failed", "refunded"],
       user_role: ["consumer", "transporter", "admin"],
+      vehicle_type: ["van", "stw", "truck"],
     },
   },
 } as const
