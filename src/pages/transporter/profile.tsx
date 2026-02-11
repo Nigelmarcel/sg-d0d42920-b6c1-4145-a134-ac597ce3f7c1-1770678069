@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { User, Mail, Phone, Calendar, Package, DollarSign, Star, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard, Save, ArrowLeft, Home, LogOut, Download, FileText, CalendarDays } from "lucide-react";
+import { User, Mail, Phone, Calendar, Package, DollarSign, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard, Save, ArrowLeft, Home, LogOut, Download, FileText, CalendarDays } from "lucide-react";
 import { format, startOfMonth, endOfMonth, differenceInMinutes } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -793,7 +793,7 @@ export default function TransporterProfile() {
                                     onClick={() => handleToggleSave(booking.id, booking.saved || false)}
                                     className={booking.saved ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "border-navy-200 hover:border-navy-400"}
                                   >
-                                    <Star className={`h-4 w-4 mr-2 ${booking.saved ? "fill-current" : ""}`} />
+                                    <Save className={`h-4 w-4 mr-2 ${booking.saved ? "fill-current" : ""}`} />
                                     {booking.saved ? "Saved" : "Save Trip"}
                                   </Button>
                                   <Button
