@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, ArrowLeft, Home, LogOut, TruckIcon, Download, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { User, Mail, Phone, Calendar, Package, CreditCard, Star, MapPin, Clock, ArrowRight, TrendingUp, Save, Home, TruckIcon, Download, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { bookingService } from "@/services/bookingService";
 import { useToast } from "@/hooks/use-toast";
@@ -280,24 +280,12 @@ ${"=".repeat(50)}
                 size="icon"
                 onClick={() => router.push("/consumer/dashboard")}
                 className="hover:bg-navy-100 dark:hover:bg-navy-800"
-              >
-                <ArrowLeft className="h-5 w-5 text-navy-600 dark:text-navy-400" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push("/consumer/dashboard")}
-                className="hover:bg-navy-100 dark:hover:bg-navy-800"
                 title="Home"
               >
                 <Home className="h-5 w-5 text-navy-600 dark:text-navy-400" />
               </Button>
               <h1 className="text-2xl font-bold text-navy-900 dark:text-white">Profile</h1>
             </div>
-            <Button variant="outline" onClick={() => supabase.auth.signOut().then(() => router.push("/"))}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
           </div>
 
           {/* Stats Cards */}
