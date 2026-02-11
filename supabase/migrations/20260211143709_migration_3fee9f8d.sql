@@ -1,0 +1,3 @@
+ALTER TABLE transporter_applications 
+ADD COLUMN IF NOT EXISTS full_name TEXT,
+ADD COLUMN IF NOT EXISTS phone TEXT;

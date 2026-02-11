@@ -419,14 +419,16 @@ export type Database = {
           documents_verified_date: string | null
           driver_license_expiry: string | null
           driver_license_number: string | null
-          driver_license_url: string
+          driver_license_url: string | null
           driver_license_validated: boolean | null
+          full_name: string | null
           id: string
           insurance_company: string | null
           insurance_expiry: string | null
           insurance_policy_number: string | null
-          insurance_url: string
+          insurance_url: string | null
           insurance_validated: boolean | null
+          phone: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           social_security_number: string | null
@@ -453,14 +455,16 @@ export type Database = {
           documents_verified_date?: string | null
           driver_license_expiry?: string | null
           driver_license_number?: string | null
-          driver_license_url: string
+          driver_license_url?: string | null
           driver_license_validated?: boolean | null
+          full_name?: string | null
           id?: string
           insurance_company?: string | null
           insurance_expiry?: string | null
           insurance_policy_number?: string | null
-          insurance_url: string
+          insurance_url?: string | null
           insurance_validated?: boolean | null
+          phone?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           social_security_number?: string | null
@@ -487,14 +491,16 @@ export type Database = {
           documents_verified_date?: string | null
           driver_license_expiry?: string | null
           driver_license_number?: string | null
-          driver_license_url?: string
+          driver_license_url?: string | null
           driver_license_validated?: boolean | null
+          full_name?: string | null
           id?: string
           insurance_company?: string | null
           insurance_expiry?: string | null
           insurance_policy_number?: string | null
-          insurance_url?: string
+          insurance_url?: string | null
           insurance_validated?: boolean | null
+          phone?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           social_security_number?: string | null

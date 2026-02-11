@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Truck, User, Mail } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SignUp() {
   const router = useRouter();
@@ -57,6 +57,14 @@ export default function SignUp() {
       });
 
       if (signUpError) throw signUpError;
+      
+      // Log signup details for debugging
+      console.log("Signup attempt:", { email, role, hasData: !!data.user });
+
+      if (signUpError) {
+        console.error("Supabase signup error:", signUpError);
+        throw signUpError;
+      }
 
       if (data.user) {
         // Wait a moment for the profile to be created by the trigger
@@ -80,6 +88,19 @@ export default function SignUp() {
     } catch (err) {
       console.error("Signup error:", err);
       setError(err instanceof Error ? err.message : "Failed to sign up");
+      
+      // Provide more helpful error messages
+      if (err instanceof Error) {
+        if (err.message.includes("invalid")) {
+          setError("This email address appears to be invalid. Please check and try again, or use a different email address.");
+        } else if (err.message.includes("already registered")) {
+          setError("This email is already registered. Please try logging in instead.");
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Failed to sign up. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -152,6 +173,19 @@ export default function SignUp() {
     } catch (err) {
       console.error("Signup error:", err);
       setError(err instanceof Error ? err.message : "Failed to sign up");
+      
+      // Provide more helpful error messages
+      if (err instanceof Error) {
+        if (err.message.includes("invalid")) {
+          setError("This email address appears to be invalid. Please check and try again, or use a different email address.");
+        } else if (err.message.includes("already registered")) {
+          setError("This email is already registered. Please try logging in instead.");
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Failed to sign up. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
