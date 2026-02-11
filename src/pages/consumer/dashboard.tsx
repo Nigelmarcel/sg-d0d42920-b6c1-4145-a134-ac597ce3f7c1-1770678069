@@ -1057,18 +1057,6 @@ ${"=".repeat(50)}
             )}
           </div>
 
-          {/* Floating Action Button - Always Visible */}
-          <button
-            onClick={() => router.push('/consumer/book-move')}
-            className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-navy-900 to-navy-950 hover:from-navy-950 hover:to-black text-white rounded-full p-4 shadow-2xl hover:shadow-navy-900/50 transition-all duration-300 hover:scale-110 group"
-            aria-label="Book a move"
-          >
-            <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" />
-            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-navy-900 text-white px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-              Book a Move
-            </span>
-          </button>
-
           {/* Chat Dialog */}
           {selectedBooking && profile && chatOpen && (
             <ChatDialog
