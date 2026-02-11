@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { ChatDialog } from "@/components/ChatDialog";
 import { TrackingMap } from "@/components/TrackingMap";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type StatusFilter = "all" | "pending" | "accepted" | "in_transit" | "delivered" | "cancelled";
 
@@ -400,6 +401,88 @@ ${"=".repeat(50)}
         variant: "destructive",
       });
     }
+  };
+
+  const deleteBooking = async (bookingId: string) => {
+    try {
+      await bookingService.deleteBooking(bookingId);
+      toast({
+        title: "Success",
+        description: "Booking deleted successfully",
+      });
+      fetchBookings();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete booking",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBookingDetailsDownload = (booking: Booking) => {
+    // Create booking receipt/details text
+    const bookingDetails = `
+VANGO - Booking Receipt
+${"=".repeat(50)}
+
+Booking ID: ${booking.id}
+Date: ${new Date(booking.created_at).toLocaleDateString()}
+Status: ${getStatusLabel(booking.status).toUpperCase()}
+
+${"=".repeat(50)}
+PICKUP DETAILS
+${"=".repeat(50)}
+Address: ${booking.pickup_address}
+${booking.scheduled_at ? `Scheduled: ${new Date(booking.scheduled_at).toLocaleString()}` : ""}
+
+${"=".repeat(50)}
+DROPOFF DETAILS
+${"=".repeat(50)}
+Address: ${booking.dropoff_address}
+
+${"=".repeat(50)}
+ITEM DETAILS
+${"=".repeat(50)}
+Description: ${booking.item_description || "N/A"}
+Size: ${booking.item_size?.toUpperCase() || "N/A"}
+${booking.special_instructions ? `Special Instructions: ${booking.special_instructions}` : ""}
+
+${"=".repeat(50)}
+PRICING BREAKDOWN
+${"=".repeat(50)}
+Distance: ${booking.distance_km?.toFixed(2) || "N/A"} km
+Base Price: €${booking.base_price?.toFixed(2) || "0.00"}
+Distance Fee: €${booking.distance_price?.toFixed(2) || "0.00"}
+Extras: €${booking.extras_price?.toFixed(2) || "0.00"}
+${"─".repeat(50)}
+Total: €${booking.total_price?.toFixed(2) || "0.00"}
+
+${booking.transporter_name ? `Transporter: ${booking.transporter_name}` : ""}
+${booking.completed_at ? `Completed: ${new Date(booking.completed_at).toLocaleString()}` : ""}
+${booking.cancelled_at ? `Cancelled: ${new Date(booking.cancelled_at).toLocaleString()}` : ""}
+
+${"=".repeat(50)}
+Thank you for using VANGO!
+Questions? Contact us at support@vango.fi
+${"=".repeat(50)}
+    `.trim();
+
+    // Create blob and download
+    const blob = new Blob([bookingDetails], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `VANGO-Booking-${booking.id.slice(0, 8)}-${new Date(booking.created_at).toISOString().split("T")[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "💾 Booking Saved",
+      description: "Booking details downloaded successfully",
+    });
   };
 
   const handleLogout = async () => {
@@ -874,13 +957,13 @@ ${"=".repeat(50)}
                             {booking.status === "delivered" && (
                               <>
                                 <Button
-                                  onClick={() => {/* TODO: Implement review */}}
+                                  onClick={() => setReviewBooking(booking)}
                                   variant="outline"
                                   size="sm"
                                   className="w-full"
                                 >
                                   <Star className="h-4 w-4 mr-2" />
-                                  Leave Review
+                                  {booking.consumer_rating ? "Reviewed" : "Leave Review"}
                                 </Button>
                                 <Button
                                   onClick={() => {/* TODO: Rebook */}}
@@ -1063,6 +1146,31 @@ ${"=".repeat(50)}
             </div>
           )}
         </div>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="stats">Stats</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview" className="space-y-4">
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
+            </div>
+          </TabsContent>
+          <TabsContent value="history" className="space-y-4">
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Loading history...</p>
+            </div>
+          </TabsContent>
+          <TabsContent value="stats" className="space-y-4">
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Loading stats...</p>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </ProtectedRoute>
   );

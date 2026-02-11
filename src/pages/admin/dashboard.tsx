@@ -1473,6 +1473,103 @@ export default function AdminDashboard() {
               </Card>
             </TabsContent>
 
+            {/* Reviews Tab */}
+            <TabsContent value="reviews">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Reviews</CardTitle>
+                  <CardDescription>View and manage consumer reviews</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Filters */}
+                    <div className="flex gap-4">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          placeholder="Search reviews by consumer or rating..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                      <Select value={bookingFilter} onValueChange={setBookingFilter}>
+                        <SelectTrigger className="w-48">
+                          <Filter className="h-4 w-4 mr-2" />
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="accepted">Accepted</SelectItem>
+                          <SelectItem value="en_route_pickup">En Route (Pickup)</SelectItem>
+                          <SelectItem value="picked_up">Picked Up</SelectItem>
+                          <SelectItem value="en_route_dropoff">En Route (Dropoff)</SelectItem>
+                          <SelectItem value="delivered">Delivered</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Bookings Table */}
+                    <div className="border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>ID</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Consumer</TableHead>
+                            <TableHead>Transporter</TableHead>
+                            <TableHead>Route</TableHead>
+                            <TableHead>Price</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredBookings.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                                No bookings found
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filteredBookings.map((booking) => (
+                              <TableRow key={booking.id}>
+                                <TableCell className="font-mono text-xs">{booking.id.slice(0, 8)}</TableCell>
+                                <TableCell className="text-sm">
+                                  {new Date(booking.created_at).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {booking.consumer?.full_name || "N/A"}
+                                  <div className="text-xs text-gray-500">{booking.consumer?.email}</div>
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {booking.transporter?.full_name || "Unassigned"}
+                                  {booking.transporter?.email && (
+                                    <div className="text-xs text-gray-500">{booking.transporter.email}</div>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm max-w-xs">
+                                  <div className="truncate">{booking.pickup_address}</div>
+                                  <div className="text-xs text-gray-500 truncate">→ {booking.dropoff_address}</div>
+                                </TableCell>
+                                <TableCell className="font-semibold">€{Number(booking.total_price).toFixed(2)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={getStatusBadgeVariant(booking.status)}>
+                                    {booking.status.replace(/_/g, " ")}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* END OF TABS */}
           </Tabs>
 

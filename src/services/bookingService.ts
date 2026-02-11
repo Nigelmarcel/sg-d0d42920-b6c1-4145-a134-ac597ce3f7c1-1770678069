@@ -418,22 +418,15 @@ export const bookingService = {
   /**
    * Permanently delete a completed or cancelled booking
    */
-  async deleteBooking(bookingId: string): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from("bookings")
-        .delete()
-        .eq("id", bookingId);
+  async deleteBooking(bookingId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("bookings")
+      .delete()
+      .eq("id", bookingId);
 
-      if (error) {
-        console.error("Error deleting booking:", error);
-        throw error;
-      }
-
-      return true;
-    } catch (error) {
+    if (error) {
       console.error("Error deleting booking:", error);
-      return false;
+      throw new Error(error.message || "Failed to delete booking");
     }
   },
 
