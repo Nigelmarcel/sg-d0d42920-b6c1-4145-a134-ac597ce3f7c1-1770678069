@@ -1352,22 +1352,33 @@ export default function AdminDashboard() {
           <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>⚠️ Delete Job?</DialogTitle>
+                <DialogTitle>⚠️ Delete Completed Job?</DialogTitle>
                 <DialogDescription>
-                  Are you sure you want to delete this job?
-                  <br />
-                  <br />
-                  <strong>Job ID:</strong> {deleteJobId?.slice(0, 8)}
-                  <br />
-                  <br />
-                  This action cannot be undone and will permanently remove the job from the database.
+                  Are you sure you want to delete this completed job?
                 </DialogDescription>
               </DialogHeader>
+              <div className="py-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">Job ID:</span>
+                  <code className="bg-muted px-2 py-1 rounded text-sm">
+                    {deleteJobId?.slice(0, 8)}
+                  </code>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  This action cannot be undone and will permanently remove the job from the database.
+                </p>
+              </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirmOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={confirmDeleteJob}>
+                <Button
+                  variant="destructive"
+                  onClick={confirmDeleteJob}
+                >
                   Delete Job
                 </Button>
               </DialogFooter>
@@ -1403,7 +1414,7 @@ export default function AdminDashboard() {
                               <label className="text-xs font-medium text-gray-500">Completed Date</label>
                               <p className="text-sm">{new Date(job.updated_at).toLocaleDateString()}</p>
                             </div>
-                            <div className="col-span-2">
+                            <div>
                               <label className="text-xs font-medium text-gray-500">Consumer</label>
                               <p className="text-sm">{job.consumer?.full_name || "N/A"}</p>
                               <p className="text-xs text-gray-500">{job.consumer?.email || "N/A"}</p>
