@@ -862,7 +862,7 @@ export default function AdminDashboard() {
           {/* Tabs */}
           <Tabs defaultValue="activity" className="space-y-4">
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="activity">Feed</TabsTrigger>
               <TabsTrigger value="roster">Roster</TabsTrigger>
               <TabsTrigger value="transporters">Transporters ({stats.totalTransporters})</TabsTrigger>
               <TabsTrigger value="consumers">Consumers ({stats.totalConsumers})</TabsTrigger>
@@ -1466,63 +1466,59 @@ export default function AdminDashboard() {
                   {/* Header */}
                   <div className="flex items-start justify-between">
                     <div>
-                      <DialogTitle className="text-2xl font-bold">
-                        {selectedUser.full_name || "Unnamed User"}
-                      </DialogTitle>
-                      <DialogDescription className="text-base mt-1">
-                        Complete transporter registry information
-                      </DialogDescription>
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold">
+                          {selectedUser.full_name || "Unnamed User"}
+                        </DialogTitle>
+                      </DialogHeader>
                     </div>
-                    <Badge variant={selectedUser.role === "transporter" ? "default" : "secondary"}>
-                      {selectedUser.role}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={selectedUser.role === "transporter" ? "default" : "secondary"}>
+                        {selectedUser.role}
+                      </Badge>
+                      <Button variant="ghost" size="sm" onClick={() => setUserDetailsOpen(false)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Personal Information */}
-                  <div className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="h-5 w-5 text-primary" />
-                      <h3 className="font-semibold text-lg">Personal Information</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <User className="h-4 w-4" />
+                      Personal Information
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs text-muted-foreground">Full Name</label>
-                        <p className="font-medium">{selectedUser.full_name || "N/A"}</p>
+                        <p className="text-sm text-muted-foreground">Full Name</p>
+                        <p className="font-medium">{selectedUser.full_name || ""}</p>
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Email</label>
-                        <p className="font-medium">{selectedUser.email || "N/A"}</p>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium">{selectedUser.email || ""}</p>
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Phone</label>
-                        <p className="font-medium">{selectedUser.phone_number || "N/A"}</p>
+                        <p className="text-sm text-muted-foreground">Phone</p>
+                        <p className="font-medium">{selectedUser.phone || ""}</p>
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Social Security Number</label>
-                        <p className="font-medium">{selectedUserApplication?.social_security_number || "N/A"}</p>
+                        <p className="text-sm text-muted-foreground">Role</p>
+                        <Badge variant="outline">{selectedUser.role}</Badge>
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Role</label>
-                        <Badge variant={selectedUser.role === "transporter" ? "default" : "secondary"}>
-                          {selectedUser.role}
-                        </Badge>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Member Since</label>
+                        <p className="text-sm text-muted-foreground">Member Since</p>
                         <p className="font-medium">
-                          {selectedUser.created_at
-                            ? new Date(selectedUser.created_at).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              })
-                            : "N/A"}
+                          {new Date(selectedUser.created_at).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
                         </p>
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Status</label>
-                        <Badge variant={selectedUser.is_online ? "default" : "secondary"}>
-                          {selectedUser.is_online ? "Online" : "Offline"}
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        <Badge variant={selectedUser.status === "online" ? "default" : "secondary"}>
+                          {selectedUser.status === "online" ? "Online" : "Offline"}
                         </Badge>
                       </div>
                     </div>
