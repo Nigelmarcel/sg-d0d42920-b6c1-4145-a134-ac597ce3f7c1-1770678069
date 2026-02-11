@@ -1242,31 +1242,6 @@ ${"=".repeat(50)}
           </Dialog>
 
         </div>
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="stats">Stats</TabsTrigger>
-          </TabsList>
-          <TabsContent value="overview" className="space-y-4">
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
-              <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
-            </div>
-          </TabsContent>
-          <TabsContent value="history" className="space-y-4">
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
-              <p className="mt-4 text-muted-foreground">Loading history...</p>
-            </div>
-          </TabsContent>
-          <TabsContent value="stats" className="space-y-4">
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-900 mx-auto"></div>
-              <p className="mt-4 text-muted-foreground">Loading stats...</p>
-            </div>
-          </TabsContent>
-        </Tabs>
       </div>
     </ProtectedRoute>
   );
