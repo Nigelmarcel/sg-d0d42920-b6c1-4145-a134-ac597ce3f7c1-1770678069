@@ -64,9 +64,18 @@ export default function AdminDashboard() {
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [consumerSearchTerm, setConsumerSearchTerm] = useState("");
   const [transporterSearchTerm, setTransporterSearchTerm] = useState("");
+  
+  // Transporter Jobs State
   const [selectedTransporterId, setSelectedTransporterId] = useState<string | null>(null);
   const [transporterJobs, setTransporterJobs] = useState<Booking[]>([]);
   const [transporterJobsOpen, setTransporterJobsOpen] = useState(false);
+
+  // Consumer Bookings State
+  const [selectedConsumerId, setSelectedConsumerId] = useState<string | null>(null);
+  const [consumerBookings, setConsumerBookings] = useState<Booking[]>([]);
+  const [consumerBookingsOpen, setConsumerBookingsOpen] = useState(false);
+
+  // Delete Job State
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
@@ -380,6 +389,21 @@ export default function AdminDashboard() {
     setTransporterJobsOpen(true);
   }
 
+  async function loadConsumerBookings(consumerId: string) {
+    const { data } = await supabase
+      .from("bookings")
+      .select(`
+        *,
+        transporter:profiles!bookings_transporter_id_fkey(id, full_name, email)
+      `)
+      .eq("consumer_id", consumerId)
+      .order("created_at", { ascending: false });
+
+    setConsumerBookings(data || []);
+    setSelectedConsumerId(consumerId);
+    setConsumerBookingsOpen(true);
+  }
+
   function saveJobToFile(job: Booking) {
     const jobData = {
       id: job.id,
@@ -420,14 +444,18 @@ export default function AdminDashboard() {
       const { error } = await supabase
         .from("bookings")
         .delete()
-        .eq("id", deleteJobId)
-        .eq("status", "delivered");
+        .eq("id", deleteJobId);
 
       if (error) throw error;
 
-      if (selectedTransporterId) {
+      // Refresh data based on context
+      if (selectedTransporterId && transporterJobsOpen) {
         await loadTransporterJobs(selectedTransporterId);
       }
+      if (selectedConsumerId && consumerBookingsOpen) {
+        await loadConsumerBookings(selectedConsumerId);
+      }
+      
       await loadDashboardData();
       
       setDeleteConfirmOpen(false);
@@ -1117,7 +1145,13 @@ export default function AdminDashboard() {
                                 <TableCell>{consumer.phone || "N/A"}</TableCell>
                                 <TableCell>{new Date(consumer.created_at).toLocaleDateString()}</TableCell>
                                 <TableCell>
-                                  <Badge variant="secondary">{consumer.total_bookings || 0}</Badge>
+                                  <Badge 
+                                    variant="secondary"
+                                    className="cursor-pointer hover:bg-blue-100"
+                                    onClick={() => loadConsumerBookings(consumer.id)}
+                                  >
+                                    {consumer.total_bookings || 0}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex gap-2">
@@ -1318,9 +1352,9 @@ export default function AdminDashboard() {
           <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>⚠️ Delete Completed Job?</DialogTitle>
+                <DialogTitle>⚠️ Delete Job?</DialogTitle>
                 <DialogDescription>
-                  Are you sure you want to delete this completed job?
+                  Are you sure you want to delete this job?
                   <br />
                   <br />
                   <strong>Job ID:</strong> {deleteJobId?.slice(0, 8)}
@@ -1441,6 +1475,106 @@ export default function AdminDashboard() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Consumer Bookings Dialog */}
+          <Dialog open={consumerBookingsOpen} onOpenChange={setConsumerBookingsOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Consumer Bookings</DialogTitle>
+                <DialogDescription>
+                  Detailed list of all bookings for this consumer
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {consumerBookings.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <p>No bookings found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {consumerBookings.map((job) => (
+                      <Card key={job.id}>
+                        <CardContent className="pt-6">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Job ID</label>
+                              <p className="font-mono text-sm">{job.id.slice(0, 8)}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Date</label>
+                              <p className="text-sm">{new Date(job.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Status</label>
+                              <p className="text-sm">
+                                <Badge variant={getStatusBadgeVariant(job.status)}>
+                                  {job.status.replace(/_/g, " ")}
+                                </Badge>
+                              </p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Transporter</label>
+                              <p className="text-sm">{job.transporter?.full_name || "Unassigned"}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                Pickup Location
+                              </label>
+                              <p className="text-sm">{job.pickup_address || "N/A"}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                Dropoff Location
+                              </label>
+                              <p className="text-sm">{job.dropoff_address || "N/A"}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Item Type</label>
+                              <p className="text-sm capitalize">{job.item_type ? job.item_type.replace(/_/g, " ") : "N/A"}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Item Size</label>
+                              <p className="text-sm capitalize">{job.item_size || "N/A"}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Total Price</label>
+                              <p className="text-lg font-bold text-green-600">€{Number(job.total_price).toFixed(2)}</p>
+                            </div>
+                          </div>
+                          
+                          {/* Save and Delete Buttons */}
+                          <div className="border-t pt-4 mt-4">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => saveJobToFile(job)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Save Job
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="flex-1 text-red-600 border-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteJob(job.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
         </main>
       </div>
     </ProtectedRoute>
