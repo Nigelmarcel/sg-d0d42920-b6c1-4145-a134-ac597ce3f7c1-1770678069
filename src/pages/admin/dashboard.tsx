@@ -64,6 +64,9 @@ export default function AdminDashboard() {
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [consumerSearchTerm, setConsumerSearchTerm] = useState("");
   const [transporterSearchTerm, setTransporterSearchTerm] = useState("");
+  const [selectedTransporterId, setSelectedTransporterId] = useState<string | null>(null);
+  const [transporterJobs, setTransporterJobs] = useState<Booking[]>([]);
+  const [transporterJobsOpen, setTransporterJobsOpen] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -359,6 +362,22 @@ export default function AdminDashboard() {
     setRecentActivity(activities.slice(0, 20));
   }
 
+  async function loadTransporterJobs(transporterId: string) {
+    const { data } = await supabase
+      .from("bookings")
+      .select(`
+        *,
+        consumer:profiles!bookings_consumer_id_fkey(id, full_name, email)
+      `)
+      .eq("transporter_id", transporterId)
+      .eq("status", "delivered")
+      .order("updated_at", { ascending: false });
+
+    setTransporterJobs(data || []);
+    setSelectedTransporterId(transporterId);
+    setTransporterJobsOpen(true);
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/auth/login");
@@ -646,7 +665,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="applications" className="space-y-4">
+          <Tabs defaultValue="activity" className="space-y-4">
             <TabsList>
               <TabsTrigger value="activity">
                 <Activity className="w-4 h-4 mr-2" />
@@ -1116,7 +1135,13 @@ export default function AdminDashboard() {
                                 <TableCell>{transporter.phone || "N/A"}</TableCell>
                                 <TableCell>{new Date(transporter.created_at).toLocaleDateString()}</TableCell>
                                 <TableCell>
-                                  <Badge variant="secondary">{transporter.total_bookings || 0}</Badge>
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="cursor-pointer hover:bg-blue-100"
+                                    onClick={() => loadTransporterJobs(transporter.id)}
+                                  >
+                                    {transporter.total_bookings || 0}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell className="font-semibold">
                                   €{(transporter.total_earnings || 0).toFixed(2)}
@@ -1206,14 +1231,6 @@ export default function AdminDashboard() {
                           </CardContent>
                         </Card>
                       )}
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm">Average Rating</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{selectedUser.average_rating || "N/A"}</div>
-                        </CardContent>
-                      </Card>
                     </div>
                   </div>
 
@@ -1234,6 +1251,86 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Transporter Jobs Dialog */}
+          <Dialog open={transporterJobsOpen} onOpenChange={setTransporterJobsOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Completed Jobs</DialogTitle>
+                <DialogDescription>
+                  Detailed list of all completed deliveries
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {transporterJobs.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <p>No completed jobs found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {transporterJobs.map((job) => (
+                      <Card key={job.id}>
+                        <CardContent className="pt-6">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Job ID</label>
+                              <p className="font-mono text-sm">{job.id.slice(0, 8)}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Completed Date</label>
+                              <p className="text-sm">{new Date(job.updated_at).toLocaleDateString()}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-gray-500">Consumer</label>
+                              <p className="text-sm">{job.consumer?.full_name || "N/A"}</p>
+                              <p className="text-xs text-gray-500">{job.consumer?.email}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                Pickup Location
+                              </label>
+                              <p className="text-sm">{job.pickup_address}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                Dropoff Location
+                              </label>
+                              <p className="text-sm">{job.dropoff_address}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Item Type</label>
+                              <p className="text-sm capitalize">{job.item_type.replace(/_/g, " ")}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Item Size</label>
+                              <p className="text-sm capitalize">{job.item_size}</p>
+                            </div>
+                            {job.special_instructions && (
+                              <div className="col-span-2">
+                                <label className="text-xs font-medium text-gray-500">Special Instructions</label>
+                                <p className="text-sm text-gray-700">{job.special_instructions}</p>
+                              </div>
+                            )}
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Total Price</label>
+                              <p className="text-lg font-bold text-green-600">€{Number(job.total_price).toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500">Your Earnings (80%)</label>
+                              <p className="text-lg font-bold text-blue-600">€{(Number(job.total_price) * 0.8).toFixed(2)}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             </DialogContent>
           </Dialog>
         </main>
