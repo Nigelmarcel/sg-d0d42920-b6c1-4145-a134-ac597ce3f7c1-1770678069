@@ -158,11 +158,6 @@ export default function ConsumerProfile() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
-  };
-
   const handleSaveBookingDetails = (booking: BookingWithTransporter) => {
     // Create booking receipt/details text
     const bookingDetails = `
@@ -299,7 +294,7 @@ ${"=".repeat(50)}
               </Button>
               <h1 className="text-2xl font-bold text-navy-900 dark:text-white">Profile</h1>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
+            <Button variant="outline" onClick={() => supabase.auth.signOut().then(() => router.push("/"))}>
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
