@@ -112,9 +112,6 @@ export default function Home() {
 
             {/* Tagline */}
             <div className="space-y-4">
-              <p className="text-2xl md:text-3xl font-semibold text-gray-700">
-                Smart Moving Solution
-              </p>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Book a van in minutes. Track in real-time. Move stress-free.
               </p>
@@ -319,10 +316,21 @@ export default function Home() {
         <footer className="bg-navy-900 text-white py-12">
           <div className="max-w-6xl mx-auto px-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              <div className="flex items-center gap-2">
-                <Package className="h-6 w-6 text-primary" />
-                <span className="text-xl font-display font-bold text-primary">VANGO</span>
+              <div className="flex items-center justify-center gap-3 mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-[#d4af37] blur-xl opacity-50 rounded-full"></div>
+                    <Truck className="h-12 w-12 text-[#d4af37] relative z-10" />
+                  </div>
+                  <div className="text-4xl font-bold bg-gradient-to-r from-[#d4af37] to-[#f4d03f] bg-clip-text text-transparent [text-shadow:_0_2px_10px_rgb(212_175_55_/_40%)]">
+                    VANGO
+                  </div>
+                </div>
               </div>
+
+              <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight bg-gradient-to-br from-white via-white to-gray-300 bg-clip-text text-transparent [text-shadow:_0_2px_10px_rgb(0_0_0_/_40%)]">
+                Smart Moving Solution
+              </h1>
               
               <p className="text-sm text-muted-foreground dark:text-gray-400">
                 © 2026 VANGO. Premium moving service in Helsinki.
