@@ -71,7 +71,7 @@ export default function Home() {
               <div className="flex items-center gap-3">
                 <ThemeSwitch />
                 <Link href="/auth/login">
-                  <Button variant="ghost" size="sm" className="font-medium">
+                  <Button variant="ghost" size="sm" className="font-medium dark:text-white dark:hover:bg-navy-800">
                     Sign In
                   </Button>
                 </Link>
@@ -101,7 +101,7 @@ export default function Home() {
                   <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gold via-yellow-400 to-gold tracking-tight">
                     VANGO
                   </h1>
-                  <div className="absolute -inset-1 bg-gradient-to-r from-navy-900 via-gold to-navy-900 rounded-3xl opacity-20 blur-sm -z-10" />
+                  <div className="absolute -inset-1 bg-gradient-to-r from-navy-900 via-gold to-navy-900 rounded-3xl opacity-20 dark:opacity-30 blur-sm -z-10" />
                 </div>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function Home() {
                 size="lg"
                 variant="outline"
                 onClick={() => router.push("/auth/login")}
-                className="border-2 border-navy-900 text-navy-900 hover:bg-navy-900 hover:text-white font-semibold text-lg px-8 py-6"
+                className="border-2 border-navy-900 dark:border-gold text-navy-900 dark:text-gold hover:bg-navy-900 hover:text-white dark:hover:bg-gold dark:hover:text-navy-900 font-semibold text-lg px-8 py-6"
               >
                 Sign In
               </Button>
@@ -169,8 +169,8 @@ export default function Home() {
             <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {/* Professional Service */}
               <div className="text-center group">
-                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-all duration-300">
-                  <Shield className="h-8 w-8 text-primary" />
+                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary/10 dark:bg-gold/20 flex items-center justify-center group-hover:bg-primary/20 dark:group-hover:bg-gold/30 transition-all duration-300">
+                  <Shield className="h-8 w-8 text-primary dark:text-gold" />
                 </div>
                 <h3 className="text-2xl font-semibold mb-3">Premium Service</h3>
                 <p className="text-muted-foreground leading-relaxed">
@@ -180,22 +180,22 @@ export default function Home() {
 
               {/* Expert Team */}
               <div className="text-center group">
-                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-all duration-300">
-                  <Users className="h-8 w-8 text-accent" />
+                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-accent/10 dark:bg-gold/20 flex items-center justify-center group-hover:bg-accent/20 dark:group-hover:bg-gold/30 transition-all duration-300">
+                  <Users className="h-8 w-8 text-accent dark:text-gold" />
                 </div>
-                <h3 className="text-2xl font-semibold mb-3">Expert Team</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="text-2xl font-semibold mb-3 dark:text-white">Expert Team</h3>
+                <p className="text-muted-foreground dark:text-gray-300 leading-relaxed">
                   Carefully vetted drivers with extensive experience in handling valuable items
                 </p>
               </div>
 
               {/* Full Protection */}
               <div className="text-center group">
-                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-all duration-300">
-                  <Truck className="h-8 w-8 text-secondary" />
+                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-secondary/10 dark:bg-gold/20 flex items-center justify-center group-hover:bg-secondary/20 dark:group-hover:bg-gold/30 transition-all duration-300">
+                  <Truck className="h-8 w-8 text-secondary dark:text-gold" />
                 </div>
-                <h3 className="text-2xl font-semibold mb-3">Full Insurance</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="text-2xl font-semibold mb-3 dark:text-white">Full Insurance</h3>
+                <p className="text-muted-foreground dark:text-gray-300 leading-relaxed">
                   Complete protection for your belongings throughout the entire moving process
                 </p>
               </div>
@@ -204,13 +204,13 @@ export default function Home() {
         </section>
 
         {/* How It Works */}
-        <section className="py-20">
+        <section className="py-20 dark:bg-navy-900">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              <h2 className="text-4xl md:text-5xl font-bold mb-4 dark:text-white">
                 Our <span className="text-gradient-gold">Process</span>
               </h2>
-              <p className="text-xl text-muted-foreground">
+              <p className="text-xl text-muted-foreground dark:text-gray-300">
                 Simple, transparent, and efficient moving experience
               </p>
             </div>
@@ -222,13 +222,13 @@ export default function Home() {
                   <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold shadow-lg">
                     1
                   </div>
-                  <h3 className="text-2xl font-semibold mb-3">Book</h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <h3 className="text-2xl font-semibold mb-3 dark:text-white">Book</h3>
+                  <p className="text-muted-foreground dark:text-gray-300 leading-relaxed">
                     Simple booking process in minutes. Provide pickup and delivery details with transparent pricing
                   </p>
                 </div>
                 {/* Connector */}
-                <div className="hidden md:block absolute top-10 left-1/2 w-full h-0.5 bg-gradient-to-r from-primary to-accent opacity-20"></div>
+                <div className="hidden md:block absolute top-10 left-1/2 w-full h-0.5 bg-gradient-to-r from-primary to-accent opacity-20 dark:opacity-40"></div>
               </div>
 
               {/* Step 2 */}
@@ -237,13 +237,13 @@ export default function Home() {
                   <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center text-white text-2xl font-bold shadow-lg">
                     2
                   </div>
-                  <h3 className="text-2xl font-semibold mb-3">Track</h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <h3 className="text-2xl font-semibold mb-3 dark:text-white">Track</h3>
+                  <p className="text-muted-foreground dark:text-gray-300 leading-relaxed">
                     Real-time GPS tracking and direct chat with your professional transporter
                   </p>
                 </div>
                 {/* Connector */}
-                <div className="hidden md:block absolute top-10 left-1/2 w-full h-0.5 bg-gradient-to-r from-accent to-secondary opacity-20"></div>
+                <div className="hidden md:block absolute top-10 left-1/2 w-full h-0.5 bg-gradient-to-r from-accent to-secondary opacity-20 dark:opacity-40"></div>
               </div>
 
               {/* Step 3 */}
@@ -252,8 +252,8 @@ export default function Home() {
                   <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-secondary to-primary flex items-center justify-center text-white text-2xl font-bold shadow-lg">
                     3
                   </div>
-                  <h3 className="text-2xl font-semibold mb-3">Delivered</h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <h3 className="text-2xl font-semibold mb-3 dark:text-white">Delivered</h3>
+                  <p className="text-muted-foreground dark:text-gray-300 leading-relaxed">
                     Safe and secure delivery with professional handling and care
                   </p>
                 </div>
@@ -320,18 +320,18 @@ export default function Home() {
                 <span className="text-xl font-display font-bold text-primary">VANGO</span>
               </div>
               
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground dark:text-gray-400">
                 © 2026 VANGO. Premium moving service in Helsinki.
               </p>
               
               <div className="flex items-center gap-6">
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="#" className="text-sm text-muted-foreground dark:text-gray-400 hover:text-foreground dark:hover:text-white transition-colors">
                   Privacy
                 </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="#" className="text-sm text-muted-foreground dark:text-gray-400 hover:text-foreground dark:hover:text-white transition-colors">
                   Terms
                 </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="#" className="text-sm text-muted-foreground dark:text-gray-400 hover:text-foreground dark:hover:text-white transition-colors">
                   Contact
                 </Link>
               </div>
