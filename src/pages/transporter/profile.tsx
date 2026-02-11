@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { User, Mail, Phone, Calendar, Package, DollarSign, Star, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard, Save, ArrowLeft, Home, LogOut } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { User, Mail, Phone, Calendar, Package, DollarSign, Star, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard, Save, ArrowLeft, Home, LogOut, Download, FileText, CalendarDays } from "lucide-react";
+import { format, startOfMonth, endOfMonth, differenceInMinutes } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -116,7 +116,7 @@ export default function TransporterProfile() {
       // Calculate stats
       const totalEarnings = (typedBookings || [])
         .filter(b => b.status === "delivered")
-        .reduce((sum, b) => sum + ((b.total_price || 0) * 0.8), 0); // 80% to transporter
+        .reduce((sum, b) => sum + ((b.total_price || 0) * 0.8), 0);
 
       const monthStart = startOfMonth(new Date());
       const monthEnd = endOfMonth(new Date());
@@ -259,6 +259,94 @@ export default function TransporterProfile() {
       });
     }
   };
+
+  // Download driving journal as CSV
+  const downloadCSV = () => {
+    const completedBookings = bookings.filter(b => b.status === "delivered");
+    
+    if (completedBookings.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No completed trips to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // CSV Headers
+    const headers = [
+      "Date",
+      "Trip ID",
+      "Start Time",
+      "End Time",
+      "Duration (min)",
+      "Start Address",
+      "End Address",
+      "Distance (km)",
+      "Customer Name",
+      "Item Type",
+      "Item Size",
+      "Earnings (€)",
+    ];
+
+    // CSV Rows
+    const rows = completedBookings.map(booking => {
+      const startTime = new Date(booking.created_at);
+      const endTime = booking.completed_at ? new Date(booking.completed_at) : startTime;
+      const duration = differenceInMinutes(endTime, startTime);
+      
+      return [
+        format(startTime, "yyyy-MM-dd"),
+        booking.id.slice(0, 8),
+        format(startTime, "HH:mm"),
+        format(endTime, "HH:mm"),
+        duration.toString(),
+        `"${booking.pickup_address}"`,
+        `"${booking.dropoff_address}"`,
+        (booking.distance_km || 0).toFixed(1),
+        `"${booking.consumer?.full_name || "N/A"}"`,
+        booking.item_type || "N/A",
+        booking.item_size || "N/A",
+        ((booking.total_price || 0) * 0.8).toFixed(2),
+      ].join(",");
+    });
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `driving-journal-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "✅ Downloaded",
+      description: "Driving journal exported as CSV",
+    });
+  };
+
+  // Calculate journal statistics
+  const calculateJournalStats = () => {
+    const completedBookings = bookings.filter(b => b.status === "delivered");
+    
+    const totalDistance = completedBookings.reduce((sum, b) => sum + (b.distance_km || 0), 0);
+    const totalDuration = completedBookings.reduce((sum, b) => {
+      if (!b.completed_at) return sum;
+      const start = new Date(b.created_at);
+      const end = new Date(b.completed_at);
+      return sum + differenceInMinutes(end, start);
+    }, 0);
+
+    return {
+      totalTrips: completedBookings.length,
+      totalDistance: totalDistance.toFixed(1),
+      totalDuration: Math.round(totalDuration),
+      averageDistance: completedBookings.length > 0 ? (totalDistance / completedBookings.length).toFixed(1) : "0",
+    };
+  };
+
+  const journalStats = calculateJournalStats();
 
   if (isLoading) {
     return (
@@ -417,7 +505,7 @@ export default function TransporterProfile() {
             <TabsList className="grid w-full max-w-2xl grid-cols-3">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="vehicle">Vehicle Info</TabsTrigger>
-              <TabsTrigger value="history">Job History</TabsTrigger>
+              <TabsTrigger value="history">Driving Journal</TabsTrigger>
             </TabsList>
 
             {/* Profile Tab */}
@@ -535,18 +623,34 @@ export default function TransporterProfile() {
               </Card>
             </TabsContent>
 
-            {/* History Tab */}
+            {/* Driving Journal Tab */}
             <TabsContent value="history">
               <Card>
                 <CardHeader>
-                  <CardTitle>Job History</CardTitle>
-                  <CardDescription>View all your completed and ongoing jobs</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Driving Journal (Ajokirja)
+                      </CardTitle>
+                      <CardDescription>Complete trip records for official reporting</CardDescription>
+                    </div>
+                    <Button
+                      onClick={downloadCSV}
+                      variant="outline"
+                      className="gap-2"
+                      disabled={bookings.filter(b => b.status === "delivered").length === 0}
+                    >
+                      <Download className="h-4 w-4" />
+                      Download CSV
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {bookings.length === 0 ? (
+                  {bookings.filter(b => b.status === "delivered").length === 0 ? (
                     <div className="text-center py-12">
-                      <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">No jobs yet</p>
+                      <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No completed trips yet</p>
                       <Button
                         variant="outline"
                         className="mt-4"
@@ -556,74 +660,135 @@ export default function TransporterProfile() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {bookings.map((booking) => {
-                        const StatusIcon = STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.icon || Clock;
-                        const earnings = ((booking.total_price || 0) * 0.8).toFixed(2);
-                        return (
-                          <div
-                            key={booking.id}
-                            className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Badge className={STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.color}>
-                                    <StatusIcon className="h-3 w-3 mr-1" />
-                                    {STATUS_CONFIG[booking.status as keyof typeof STATUS_CONFIG]?.label}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(new Date(booking.created_at), "MMM dd, yyyy 'at' HH:mm")}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  Job ID: {booking.id.slice(0, 8)}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-2xl font-bold text-green-600">€{earnings}</p>
-                                <p className="text-xs text-muted-foreground">Your Earnings (80%)</p>
-                              </div>
-                            </div>
+                    <>
+                      {/* Journal Statistics */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-muted rounded-lg">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Trips</p>
+                          <p className="text-2xl font-bold">{journalStats.totalTrips}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Distance</p>
+                          <p className="text-2xl font-bold">{journalStats.totalDistance} km</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Duration</p>
+                          <p className="text-2xl font-bold">{Math.floor(journalStats.totalDuration / 60)}h {journalStats.totalDuration % 60}m</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Avg Distance</p>
+                          <p className="text-2xl font-bold">{journalStats.averageDistance} km</p>
+                        </div>
+                      </div>
 
-                            <Separator className="my-3" />
+                      {/* Trip Records */}
+                      <div className="space-y-4">
+                        {bookings
+                          .filter(b => b.status === "delivered")
+                          .map((booking) => {
+                            const startTime = new Date(booking.created_at);
+                            const endTime = booking.completed_at ? new Date(booking.completed_at) : startTime;
+                            const duration = differenceInMinutes(endTime, startTime);
+                            const earnings = ((booking.total_price || 0) * 0.8).toFixed(2);
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="h-4 w-4 text-green-500 mt-1" />
+                            return (
+                              <div
+                                key={booking.id}
+                                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                              >
+                                {/* Header */}
+                                <div className="flex items-start justify-between mb-3">
                                   <div>
-                                    <p className="text-xs text-muted-foreground">Pickup</p>
-                                    <p className="font-medium">{booking.pickup_address}</p>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <CalendarDays className="h-4 w-4 text-primary" />
+                                      <span className="font-semibold">
+                                        {format(startTime, "EEEE, MMMM dd, yyyy")}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                      Trip ID: {booking.id.slice(0, 8)}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-2xl font-bold text-green-600">€{earnings}</p>
+                                    <p className="text-xs text-muted-foreground">Earnings</p>
                                   </div>
                                 </div>
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="h-4 w-4 text-red-500 mt-1" />
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">Dropoff</p>
-                                    <p className="font-medium">{booking.dropoff_address}</p>
+
+                                <Separator className="my-3" />
+
+                                {/* Trip Details Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* Time & Duration */}
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="h-4 w-4 text-blue-500" />
+                                      <div>
+                                        <p className="text-xs text-muted-foreground">Start Time</p>
+                                        <p className="font-medium">{format(startTime, "HH:mm")}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="h-4 w-4 text-purple-500" />
+                                      <div>
+                                        <p className="text-xs text-muted-foreground">End Time</p>
+                                        <p className="font-medium">{format(endTime, "HH:mm")}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <TrendingUp className="h-4 w-4 text-orange-500" />
+                                      <div>
+                                        <p className="text-xs text-muted-foreground">Duration</p>
+                                        <p className="font-medium">{Math.floor(duration / 60)}h {duration % 60}m</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Locations */}
+                                  <div className="space-y-3">
+                                    <div className="flex items-start gap-2">
+                                      <MapPin className="h-4 w-4 text-green-500 mt-1" />
+                                      <div>
+                                        <p className="text-xs text-muted-foreground">Start Point</p>
+                                        <p className="font-medium text-sm">{booking.pickup_address}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                      <MapPin className="h-4 w-4 text-red-500 mt-1" />
+                                      <div>
+                                        <p className="text-xs text-muted-foreground">End Point</p>
+                                        <p className="font-medium text-sm">{booking.dropoff_address}</p>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
 
-                              <div className="space-y-2">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Item Details</p>
-                                  <p className="font-medium">{booking.item_type} - {booking.item_size}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">Distance: {booking.distance_km?.toFixed(1)} km</p>
-                                </div>
-                                {booking.consumer && (
+                                <Separator className="my-3" />
+
+                                {/* Additional Info */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Distance</p>
+                                    <p className="font-semibold">{(booking.distance_km || 0).toFixed(1)} km</p>
+                                  </div>
                                   <div>
                                     <p className="text-xs text-muted-foreground">Customer</p>
-                                    <p className="font-medium">{booking.consumer.full_name || "Unknown"}</p>
+                                    <p className="font-semibold">{booking.consumer?.full_name || "N/A"}</p>
                                   </div>
-                                )}
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Item Type</p>
+                                    <p className="font-semibold">{booking.item_type || "N/A"}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Item Size</p>
+                                    <p className="font-semibold">{booking.item_size || "N/A"}</p>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                            );
+                          })}
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
