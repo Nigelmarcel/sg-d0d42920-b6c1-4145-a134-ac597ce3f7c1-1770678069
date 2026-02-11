@@ -8,32 +8,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { User, Mail, Phone, Calendar, Package, DollarSign, Star, MapPin, Clock, ArrowRight, TrendingUp, Truck, CreditCard, Save, ArrowLeft, Home, LogOut, Download, FileText, CalendarDays } from "lucide-react";
 import { format, startOfMonth, endOfMonth, differenceInMinutes } from "date-fns";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { updateProfile } from "@/services/profileService";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Application = Database["public"]["Tables"]["transporter_applications"]["Row"];
-// Define the exact shape returned by the join query
-type BookingWithConsumer = Database["public"]["Tables"]["bookings"]["Row"] & {
+
+// Extend the booking type to include the joined consumer data and the potentially new 'saved' column
+// We use 'as any' for status in the definition to avoid strict enum conflicts during development
+type BookingWithConsumer = Omit<Database["public"]["Tables"]["bookings"]["Row"], "status"> & {
+  status: string; // Widen type to string to prevent enum errors
   consumer: { id: string; full_name: string | null; email: string | null } | null;
   saved?: boolean;
-};
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  pending: { label: "Pending", color: "bg-yellow-500", icon: Clock },
-  accepted: { label: "Accepted", color: "bg-navy-900 text-white", icon: Package },
-  en_route_pickup: { label: "En Route to Pickup", color: "bg-navy-900/80 text-white", icon: ArrowRight },
-  picked_up: { label: "Picked Up", color: "bg-purple-500", icon: Package },
-  en_route_dropoff: { label: "En Route to Dropoff", color: "bg-cyan-500", icon: ArrowRight },
-  delivered: { label: "Delivered", color: "bg-green-500", icon: Package },
-  cancelled: { label: "Cancelled", color: "bg-red-500", icon: Clock },
 };
 
 export default function TransporterProfile() {
@@ -41,8 +31,6 @@ export default function TransporterProfile() {
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [application, setApplication] = useState<Application | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
   const [bookings, setBookings] = useState<BookingWithConsumer[]>([]);
   const [stats, setStats] = useState({
@@ -59,8 +47,6 @@ export default function TransporterProfile() {
     full_name: "",
     phone: "",
   });
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [savedBookings, setSavedBookings] = useState<BookingWithConsumer[]>([]);
 
   useEffect(() => {
     loadProfileData();
@@ -92,7 +78,7 @@ export default function TransporterProfile() {
       });
 
       // Load application details
-      const { data: appData, error: appError } = await supabase
+      const { data: appData } = await supabase
         .from("transporter_applications")
         .select("*")
         .eq("user_id", session.user.id)
@@ -138,7 +124,7 @@ export default function TransporterProfile() {
         completedJobs: completedCount,
         totalEarnings,
         monthlyEarnings,
-        averageRating: 4.8, // Placeholder - will be calculated from reviews
+        averageRating: 4.8, // Placeholder
         cancelledJobs: cancelledCount,
       });
 
@@ -165,65 +151,19 @@ export default function TransporterProfile() {
 
       if (error) throw error;
       await loadProfileData();
-      alert("Profile updated successfully!");
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      alert("Failed to update profile");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
-  };
-
-  const getInitials = (name: string | null) => {
-    if (!name) return "T";
-    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user?.id) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to update your profile",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      await updateProfile(session.user.id, {
-        full_name: formData.full_name || null,
-        phone: formData.phone || null,
-      });
-
-      // Update local profile state
-      if (profile) {
-        setProfile({ ...profile, full_name: formData.full_name, phone: formData.phone });
-      }
-
       toast({
         title: "✅ Profile Updated",
-        description: "Your profile has been successfully updated",
+        description: "Your information has been saved successfully.",
       });
     } catch (error) {
-      console.error("Error updating profile:", error);
+      console.error("Error saving profile:", error);
       toast({
         title: "Error",
-        description: "Failed to update profile. Please try again.",
+        description: "Failed to update profile",
         variant: "destructive",
       });
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -242,9 +182,12 @@ export default function TransporterProfile() {
     try {
       setIsOnline(checked);
       
-      await updateProfile(session.user.id, {
-        is_online: checked,
-      });
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_online: checked })
+        .eq("id", session.user.id);
+        
+      if (error) throw error;
 
       toast({
         title: checked ? "🟢 You're Online" : "⚫ You're Offline",
@@ -258,40 +201,6 @@ export default function TransporterProfile() {
       toast({
         title: "Error",
         description: "Failed to update status. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSaveBooking = async (bookingId: string, status: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user?.id) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to update a booking",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ status })
-        .eq("id", bookingId);
-
-      if (error) throw error;
-
-      toast({
-        title: "✅ Booking Updated",
-        description: `Booking ${bookingId} status updated to ${status}`,
-      });
-    } catch (error) {
-      console.error("Error updating booking status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update booking status. Please try again.",
         variant: "destructive",
       });
     }
@@ -311,7 +220,7 @@ export default function TransporterProfile() {
       ));
 
       toast({
-        title: !currentSavedState ? "Trip Saved" : "Trip Unsaved",
+        title: !currentSavedState ? "⭐ Trip Saved" : "📝 Trip Unsaved",
         description: !currentSavedState ? "Trip marked as saved in your journal." : "Trip removed from saved items.",
       });
     } catch (error) {
@@ -325,7 +234,7 @@ export default function TransporterProfile() {
   };
 
   const handleDeleteBooking = async (bookingId: string) => {
-    if (!confirm("Are you sure you want to delete this trip record? This cannot be undone.")) return;
+    if (!confirm("⚠️ Are you sure you want to delete this trip record?\n\nThis action cannot be undone and will permanently remove this trip from your journal.")) return;
 
     try {
       const { error } = await supabase
@@ -338,7 +247,7 @@ export default function TransporterProfile() {
       setBookings(bookings.filter(b => b.id !== bookingId));
 
       toast({
-        title: "Trip Deleted",
+        title: "🗑️ Trip Deleted",
         description: "The trip record has been permanently removed.",
       });
     } catch (error) {
@@ -876,15 +785,16 @@ export default function TransporterProfile() {
                                   </div>
                                 </div>
 
-                                <div className="flex justify-end gap-2 mt-2">
+                                {/* Save & Delete Buttons */}
+                                <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-dashed">
                                   <Button
                                     variant={booking.saved ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => handleToggleSave(booking.id, booking.saved || false)}
-                                    className={booking.saved ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}
+                                    className={booking.saved ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "border-navy-200 hover:border-navy-400"}
                                   >
                                     <Star className={`h-4 w-4 mr-2 ${booking.saved ? "fill-current" : ""}`} />
-                                    {booking.saved ? "Saved" : "Save"}
+                                    {booking.saved ? "Saved" : "Save Trip"}
                                   </Button>
                                   <Button
                                     variant="outline"
@@ -893,7 +803,7 @@ export default function TransporterProfile() {
                                     className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                                   >
                                     <LogOut className="h-4 w-4 mr-2" />
-                                    Delete
+                                    Delete Record
                                   </Button>
                                 </div>
                               </div>
