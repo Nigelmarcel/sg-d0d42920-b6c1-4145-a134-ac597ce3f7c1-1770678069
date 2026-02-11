@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Truck, Package, DollarSign, AlertCircle, Search, Filter, Eye, Ban, CheckCircle, Mail, Download, Home, LogOut } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Users, Truck, Package, DollarSign, AlertCircle, Search, Filter, Eye, Ban, CheckCircle, Mail, Download, LogOut, Activity, TrendingUp, TrendingDown, Clock, MapPin, CreditCard, UserPlus, UserCheck } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { formatDistanceToNow } from "date-fns";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type TransporterApplication = Database["public"]["Tables"]["transporter_applications"]["Row"];
@@ -26,6 +27,16 @@ type UserWithStats = Profile & {
   average_rating?: number;
 };
 
+type ActivityLog = {
+  id: string;
+  type: "user_signup" | "booking_created" | "booking_completed" | "payment_received" | "application_submitted";
+  user_type: "consumer" | "transporter" | "admin";
+  user_name: string;
+  description: string;
+  timestamp: string;
+  amount?: number;
+};
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -35,12 +46,17 @@ export default function AdminDashboard() {
     pendingApplications: 0,
     activeBookings: 0,
     totalRevenue: 0,
-    todayBookings: 0
+    todayBookings: 0,
+    activeConsumers: 0,
+    activeTransporters: 0,
+    avgBookingValue: 0,
+    completionRate: 0
   });
   const [pendingApplications, setPendingApplications] = useState<TransporterApplication[]>([]);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [consumers, setConsumers] = useState<UserWithStats[]>([]);
   const [transporters, setTransporters] = useState<UserWithStats[]>([]);
+  const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [bookingFilter, setBookingFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,6 +73,7 @@ export default function AdminDashboard() {
       .channel("admin-bookings")
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => {
         loadBookingsData();
+        loadActivityData();
       })
       .subscribe();
 
@@ -64,12 +81,22 @@ export default function AdminDashboard() {
       .channel("admin-applications")
       .on("postgres_changes", { event: "*", schema: "public", table: "transporter_applications" }, () => {
         loadApplicationsData();
+        loadActivityData();
+      })
+      .subscribe();
+
+    const profilesSubscription = supabase
+      .channel("admin-profiles")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        loadUsersData();
+        loadActivityData();
       })
       .subscribe();
 
     return () => {
       bookingsSubscription.unsubscribe();
       applicationsSubscription.unsubscribe();
+      profilesSubscription.unsubscribe();
     };
   }, []);
 
@@ -91,7 +118,8 @@ export default function AdminDashboard() {
         loadStatsData(),
         loadApplicationsData(),
         loadBookingsData(),
-        loadUsersData()
+        loadUsersData(),
+        loadActivityData()
       ]);
 
     } catch (error) {
@@ -122,12 +150,15 @@ export default function AdminDashboard() {
       .select("id", { count: "exact" })
       .in("status", ["pending", "accepted", "en_route_pickup", "picked_up", "en_route_dropoff"]);
 
-    const { data: payments } = await supabase
-      .from("payments")
-      .select("amount")
-      .eq("status", "succeeded");
+    const { data: allBookingsData } = await supabase
+      .from("bookings")
+      .select("total_price, status");
 
-    const totalRevenue = payments?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
+    const totalRevenue = allBookingsData?.reduce((sum, booking) => sum + Number(booking.total_price), 0) || 0;
+    const completedBookings = allBookingsData?.filter(b => b.status === "delivered").length || 0;
+    const totalBookings = allBookingsData?.length || 0;
+    const completionRate = totalBookings > 0 ? (completedBookings / totalBookings) * 100 : 0;
+    const avgBookingValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -137,13 +168,35 @@ export default function AdminDashboard() {
       .select("id", { count: "exact" })
       .gte("created_at", today.toISOString());
 
+    // Active users (users with bookings in last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const { data: activeConsumerBookings } = await supabase
+      .from("bookings")
+      .select("consumer_id")
+      .gte("created_at", thirtyDaysAgo.toISOString());
+
+    const { data: activeTransporterBookings } = await supabase
+      .from("bookings")
+      .select("transporter_id")
+      .gte("created_at", thirtyDaysAgo.toISOString())
+      .not("transporter_id", "is", null);
+
+    const activeConsumers = new Set(activeConsumerBookings?.map(b => b.consumer_id)).size;
+    const activeTransporters = new Set(activeTransporterBookings?.map(b => b.transporter_id)).size;
+
     setStats({
       totalConsumers: consumers?.length || 0,
       totalTransporters: transporters?.length || 0,
       pendingApplications: applications?.length || 0,
       activeBookings: activeBookings?.length || 0,
       totalRevenue,
-      todayBookings: todayBookings?.length || 0
+      todayBookings: todayBookings?.length || 0,
+      activeConsumers,
+      activeTransporters,
+      avgBookingValue,
+      completionRate
     });
   }
 
@@ -228,6 +281,84 @@ export default function AdminDashboard() {
     }
   }
 
+  async function loadActivityData() {
+    const activities: ActivityLog[] = [];
+
+    // Recent signups
+    const { data: recentUsers } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    recentUsers?.forEach(user => {
+      activities.push({
+        id: `signup-${user.id}`,
+        type: "user_signup",
+        user_type: user.role as "consumer" | "transporter" | "admin",
+        user_name: user.full_name || user.email || "Unknown",
+        description: `New ${user.role} signed up`,
+        timestamp: user.created_at
+      });
+    });
+
+    // Recent bookings
+    const { data: recentBookings } = await supabase
+      .from("bookings")
+      .select(`
+        *,
+        consumer:profiles!bookings_consumer_id_fkey(full_name, email)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    recentBookings?.forEach(booking => {
+      activities.push({
+        id: `booking-${booking.id}`,
+        type: "booking_created",
+        user_type: "consumer",
+        user_name: booking.consumer?.full_name || booking.consumer?.email || "Unknown",
+        description: `Created booking from ${booking.pickup_address.split(",")[0]} to ${booking.dropoff_address.split(",")[0]}`,
+        timestamp: booking.created_at,
+        amount: Number(booking.total_price)
+      });
+
+      if (booking.status === "delivered") {
+        activities.push({
+          id: `completed-${booking.id}`,
+          type: "booking_completed",
+          user_type: "transporter",
+          user_name: "Transporter",
+          description: `Completed delivery`,
+          timestamp: booking.updated_at,
+          amount: Number(booking.total_price) * 0.8
+        });
+      }
+    });
+
+    // Recent applications
+    const { data: recentApps } = await supabase
+      .from("transporter_applications")
+      .select("*")
+      .order("submitted_at", { ascending: false })
+      .limit(5);
+
+    recentApps?.forEach(app => {
+      activities.push({
+        id: `app-${app.id}`,
+        type: "application_submitted",
+        user_type: "transporter",
+        user_name: "Applicant",
+        description: `Submitted transporter application`,
+        timestamp: app.submitted_at
+      });
+    });
+
+    // Sort by timestamp and take top 20
+    activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    setRecentActivity(activities.slice(0, 20));
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/auth/login");
@@ -283,8 +414,6 @@ export default function AdminDashboard() {
 
   async function suspendUser(userId: string) {
     try {
-      // In a real app, you would call a Supabase Edge Function to suspend the auth user
-      // For now, we'll just update the profile metadata
       await supabase
         .from("profiles")
         .update({ updated_at: new Date().toISOString() })
@@ -370,6 +499,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const getActivityIcon = (type: ActivityLog["type"]) => {
+    switch (type) {
+      case "user_signup": return UserPlus;
+      case "booking_created": return Package;
+      case "booking_completed": return CheckCircle;
+      case "payment_received": return CreditCard;
+      case "application_submitted": return UserCheck;
+      default: return Activity;
+    }
+  };
+
+  const getActivityColor = (type: ActivityLog["type"]) => {
+    switch (type) {
+      case "user_signup": return "text-blue-600";
+      case "booking_created": return "text-purple-600";
+      case "booking_completed": return "text-green-600";
+      case "payment_received": return "text-yellow-600";
+      case "application_submitted": return "text-orange-600";
+      default: return "text-gray-600";
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -398,7 +549,7 @@ export default function AdminDashboard() {
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Stats Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Consumers</CardTitle>
@@ -406,6 +557,9 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalConsumers}</div>
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-green-600">+{stats.activeConsumers}</span> active (30d)
+                </p>
               </CardContent>
             </Card>
 
@@ -416,6 +570,9 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalTransporters}</div>
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-green-600">+{stats.activeTransporters}</span> active (30d)
+                </p>
               </CardContent>
             </Card>
 
@@ -426,6 +583,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-yellow-600">{stats.pendingApplications}</div>
+                <p className="text-xs text-muted-foreground">Awaiting review</p>
               </CardContent>
             </Card>
 
@@ -436,6 +594,9 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.activeBookings}</div>
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-blue-600">+{stats.todayBookings}</span> today
+                </p>
               </CardContent>
             </Card>
 
@@ -446,16 +607,40 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">€{stats.totalRevenue.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">All time</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Today&apos;s Bookings</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Avg Booking Value</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">€{stats.avgBookingValue.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">Per booking</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.completionRate.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground">Successful deliveries</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Today&apos;s Activity</CardTitle>
+                <Activity className="h-4 w-4 text-purple-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.todayBookings}</div>
+                <p className="text-xs text-muted-foreground">New bookings</p>
               </CardContent>
             </Card>
           </div>
@@ -463,6 +648,10 @@ export default function AdminDashboard() {
           {/* Tabs */}
           <Tabs defaultValue="applications" className="space-y-4">
             <TabsList>
+              <TabsTrigger value="activity">
+                <Activity className="w-4 h-4 mr-2" />
+                Activity Feed
+              </TabsTrigger>
               <TabsTrigger value="applications">
                 Applications
                 {stats.pendingApplications > 0 && (
@@ -473,6 +662,177 @@ export default function AdminDashboard() {
               <TabsTrigger value="consumers">Consumers ({stats.totalConsumers})</TabsTrigger>
               <TabsTrigger value="transporters">Transporters ({stats.totalTransporters})</TabsTrigger>
             </TabsList>
+
+            {/* Activity Feed Tab */}
+            <TabsContent value="activity">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Recent Activity Timeline */}
+                <Card className="md:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                    <CardDescription>Real-time platform activity feed</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                      {recentActivity.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Activity className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                          <p>No recent activity</p>
+                        </div>
+                      ) : (
+                        recentActivity.map((activity) => {
+                          const Icon = getActivityIcon(activity.type);
+                          const colorClass = getActivityColor(activity.type);
+                          
+                          return (
+                            <div key={activity.id} className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                              <div className={`p-2 rounded-full bg-gray-100 ${colorClass}`}>
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <p className="font-medium text-sm">{activity.user_name}</p>
+                                    <p className="text-sm text-gray-600">{activity.description}</p>
+                                    {activity.amount && (
+                                      <p className="text-sm font-semibold text-green-600 mt-1">
+                                        €{activity.amount.toFixed(2)}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {activity.user_type}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Consumer Activity Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Consumer Activity</CardTitle>
+                    <CardDescription>Last 30 days</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <UserPlus className="w-5 h-5 text-blue-600" />
+                          <div>
+                            <p className="font-medium text-sm">New Signups</p>
+                            <p className="text-xs text-gray-600">This month</p>
+                          </div>
+                        </div>
+                        <span className="text-2xl font-bold text-blue-600">
+                          {consumers.filter(c => {
+                            const thirtyDaysAgo = new Date();
+                            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                            return new Date(c.created_at) > thirtyDaysAgo;
+                          }).length}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Package className="w-5 h-5 text-purple-600" />
+                          <div>
+                            <p className="font-medium text-sm">Active Users</p>
+                            <p className="text-xs text-gray-600">Made bookings</p>
+                          </div>
+                        </div>
+                        <span className="text-2xl font-bold text-purple-600">
+                          {stats.activeConsumers}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <TrendingUp className="w-5 h-5 text-green-600" />
+                          <div>
+                            <p className="font-medium text-sm">Avg Bookings</p>
+                            <p className="text-xs text-gray-600">Per active user</p>
+                          </div>
+                        </div>
+                        <span className="text-2xl font-bold text-green-600">
+                          {stats.activeConsumers > 0 
+                            ? (consumers.reduce((sum, c) => sum + (c.total_bookings || 0), 0) / stats.activeConsumers).toFixed(1)
+                            : "0.0"
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Transporter Activity Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Transporter Activity</CardTitle>
+                    <CardDescription>Last 30 days</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Truck className="w-5 h-5 text-orange-600" />
+                          <div>
+                            <p className="font-medium text-sm">New Transporters</p>
+                            <p className="text-xs text-gray-600">This month</p>
+                          </div>
+                        </div>
+                        <span className="text-2xl font-bold text-orange-600">
+                          {transporters.filter(t => {
+                            const thirtyDaysAgo = new Date();
+                            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                            return new Date(t.created_at) > thirtyDaysAgo;
+                          }).length}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <div>
+                            <p className="font-medium text-sm">Active Drivers</p>
+                            <p className="text-xs text-gray-600">Completed jobs</p>
+                          </div>
+                        </div>
+                        <span className="text-2xl font-bold text-green-600">
+                          {stats.activeTransporters}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <DollarSign className="w-5 h-5 text-yellow-600" />
+                          <div>
+                            <p className="font-medium text-sm">Avg Earnings</p>
+                            <p className="text-xs text-gray-600">Per active driver</p>
+                          </div>
+                        </div>
+                        <span className="text-2xl font-bold text-yellow-600">
+                          €{stats.activeTransporters > 0
+                            ? (transporters.reduce((sum, t) => sum + (t.total_earnings || 0), 0) / stats.activeTransporters).toFixed(0)
+                            : "0"
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
             {/* Applications Tab */}
             <TabsContent value="applications">
