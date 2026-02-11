@@ -53,7 +53,6 @@ export default function TransporterDashboard() {
   const [userName, setUserName] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [userAvatar, setUserAvatar] = useState<string>("");
-  const [isOnline, setIsOnline] = useState(false);
   const [availableJobs, setAvailableJobs] = useState<Booking[]>([]);
   const [activeJobs, setActiveJobs] = useState<Booking[]>([]);
   const [completedJobs, setCompletedJobs] = useState<Booking[]>([]);
@@ -108,7 +107,6 @@ export default function TransporterDashboard() {
         setUserName(userProfile.full_name || "Driver");
         setUserEmail(session.user.email || "");
         setUserAvatar(userProfile.avatar_url || "");
-        setIsOnline(userProfile.is_online || false);
 
         await fetchJobs(session.user.id);
         await fetchStats(session.user.id);
@@ -177,7 +175,6 @@ export default function TransporterDashboard() {
     setUserName(profile.full_name || "Driver");
     setUserEmail(session.user.email || "");
     setUserAvatar(profile.avatar_url || "");
-    setIsOnline(profile.is_online || false);
 
     await fetchJobs(session.user.id);
     await fetchStats(session.user.id);
@@ -210,21 +207,6 @@ export default function TransporterDashboard() {
 
     setTotalEarnings(earnings);
     setCompletedCount(allCompleted.length);
-  };
-
-  const toggleOnlineStatus = async () => {
-    const newStatus = !isOnline;
-    const success = await profileService.updateOnlineStatus(userId, newStatus);
-    
-    if (success) {
-      setIsOnline(newStatus);
-      toast({
-        title: newStatus ? "✅ You're Online" : "⏸️ You're Offline",
-        description: newStatus 
-          ? "You can now accept new jobs" 
-          : "You won't receive new job requests",
-      });
-    }
   };
 
   const handleAcceptJob = async (bookingId: string) => {
@@ -527,162 +509,107 @@ export default function TransporterDashboard() {
                 <p className="text-muted-foreground">Welcome back, {userName}</p>
               </div>
 
-              {/* Online/Offline Toggle - Prominent Header Button */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 px-4 py-2 rounded-lg border border-border bg-card shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`}></div>
-                    <span className="text-base font-medium text-foreground">
-                      {isOnline ? "Online" : "Offline"}
-                    </span>
+              {/* User Menu Dropdown */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={userAvatar} alt={userName} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {getInitials(userName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="text-left hidden sm:block">
+                    <p className="font-medium text-foreground">{userName}</p>
+                    <p className="text-sm text-muted-foreground">{userEmail}</p>
                   </div>
-                  <button
-                    onClick={toggleOnlineStatus}
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                      isOnline ? "bg-emerald-500" : "bg-muted"
-                    }`}
-                    aria-label={isOnline ? "Go offline" : "Go online"}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-card transition-transform shadow-sm ${
-                        isOnline ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
+                  <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                </button>
 
-                {/* User Menu Dropdown */}
-                <div className="relative" ref={userMenuRef}>
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={userAvatar} alt={userName} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {getInitials(userName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="text-left hidden sm:block">
-                      <p className="font-medium text-foreground">{userName}</p>
-                      <p className="text-sm text-muted-foreground">{userEmail}</p>
-                    </div>
-                    <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-80 bg-card rounded-lg shadow-elevated border border-border py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
-                      {/* User Info Section */}
-                      <div className="px-4 py-3 border-b border-border">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={userAvatar} alt={userName} />
-                            <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                              {getInitials(userName)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="font-semibold text-foreground">{userName}</p>
-                            <p className="text-sm text-muted-foreground">{userEmail}</p>
-                            <Badge className="mt-1 bg-primary/10 text-primary">Transporter</Badge>
-                          </div>
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-card rounded-lg shadow-elevated border border-border py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* User Info Section */}
+                    <div className="px-4 py-3 border-b border-border">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={userAvatar} alt={userName} />
+                          <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+                            {getInitials(userName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="font-semibold text-foreground">{userName}</p>
+                          <p className="text-sm text-muted-foreground">{userEmail}</p>
+                          <Badge className="mt-1 bg-primary/10 text-primary">Transporter</Badge>
                         </div>
-                      </div>
-
-                      {/* Quick Stats */}
-                      <div className="px-4 py-3 border-b border-border">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-gold/10 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <DollarSign className="w-4 h-4 text-gold" />
-                              <p className="text-xs font-medium text-gold">Total Earnings</p>
-                            </div>
-                            <p className="text-lg font-bold text-gold">€{totalEarnings.toFixed(2)}</p>
-                          </div>
-                          <div className="bg-navy/10 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Award className="w-4 h-4 text-navy" />
-                              <p className="text-xs font-medium text-navy">Completed</p>
-                            </div>
-                            <p className="text-lg font-bold text-navy">{completedCount}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Online/Offline Toggle */}
-                      <div className="px-4 py-3 border-b border-border">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-success" : "bg-muted-foreground"}`}></div>
-                            <span className="text-sm font-medium text-foreground">
-                              {isOnline ? "Online" : "Offline"}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              toggleOnlineStatus();
-                              setUserMenuOpen(false);
-                            }}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              isOnline ? "bg-success" : "bg-muted"
-                            }`}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${
-                                isOnline ? "translate-x-6" : "translate-x-1"
-                              }`}
-                            />
-                          </button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {isOnline ? "You can accept new jobs" : "You won't receive job requests"}
-                        </p>
-                      </div>
-
-                      {/* Menu Items */}
-                      <div className="py-1">
-                        <button
-                          onClick={() => {
-                            router.push("/transporter/profile");
-                            setUserMenuOpen(false);
-                          }}
-                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        >
-                          <User className="w-4 h-4" />
-                          <span>Profile</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            toast({
-                              title: "Coming Soon",
-                              description: "Settings page is under development",
-                            });
-                            setUserMenuOpen(false);
-                          }}
-                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        >
-                          <Settings className="w-4 h-4" />
-                          <span>Settings</span>
-                        </button>
-
-                        <Separator className="my-1" />
-
-                        <button
-                          onClick={() => {
-                            setUserMenuOpen(false);
-                            handleLogout();
-                          }}
-                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          <span>Logout</span>
-                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Quick Stats */}
+                    <div className="px-4 py-3 border-b border-border">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-gold/10 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <DollarSign className="w-4 h-4 text-gold" />
+                            <p className="text-xs font-medium text-gold">Total Earnings</p>
+                          </div>
+                          <p className="text-lg font-bold text-gold">€{totalEarnings.toFixed(2)}</p>
+                        </div>
+                        <div className="bg-navy/10 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Award className="w-4 h-4 text-navy" />
+                            <p className="text-xs font-medium text-navy">Completed</p>
+                          </div>
+                          <p className="text-lg font-bold text-navy">{completedCount}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          router.push("/transporter/profile");
+                          setUserMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        <span>Profile</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          toast({
+                            title: "Coming Soon",
+                            description: "Settings page is under development",
+                          });
+                          setUserMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Settings</span>
+                      </button>
+
+                      <Separator className="my-1" />
+
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
