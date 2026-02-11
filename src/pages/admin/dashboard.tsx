@@ -25,6 +25,8 @@ type UserWithStats = Profile & {
   total_bookings?: number;
   total_earnings?: number;
   average_rating?: number;
+  status: "online" | "offline" | "busy";
+  current_job?: Booking | null;
 };
 
 type ActivityLog = {
@@ -258,8 +260,10 @@ export default function AdminDashboard() {
             ...consumer,
             total_bookings: bookings?.length || 0,
             total_earnings: 0,
-            average_rating: 0
-          };
+            average_rating: 0,
+            status: "offline", // Default for consumers
+            current_job: null
+          } as UserWithStats;
         })
       );
       setConsumers(consumersWithStats);
@@ -275,20 +279,41 @@ export default function AdminDashboard() {
     if (transporterData) {
       const transportersWithStats = await Promise.all(
         transporterData.map(async (transporter) => {
+          // Get completed bookings for stats
           const { data: bookings } = await supabase
             .from("bookings")
             .select("id, total_price")
             .eq("transporter_id", transporter.id)
             .eq("status", "delivered");
 
-          const totalEarnings = bookings?.reduce((sum, b) => sum + Number(b.total_price) * 0.8, 0) || 0;
+          const totalEarnings = bookings?.reduce((sum, b) => sum + Number(b.total_price) * 0.75, 0) || 0;
+
+          // Get active booking for status
+          const { data: activeBooking } = await supabase
+            .from("bookings")
+            .select(`
+              *,
+              consumer:profiles!bookings_consumer_id_fkey(id, full_name, email)
+            `)
+            .eq("transporter_id", transporter.id)
+            .in("status", ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"])
+            .maybeSingle();
+
+          let status: "online" | "offline" | "busy" = "offline";
+          if (activeBooking) {
+            status = "busy";
+          } else if (transporter.is_online) {
+            status = "online";
+          }
 
           return {
             ...transporter,
             total_bookings: bookings?.length || 0,
             total_earnings: totalEarnings,
-            average_rating: 0
-          };
+            average_rating: 0,
+            status,
+            current_job: activeBooking || null
+          } as UserWithStats;
         })
       );
       setTransporters(transportersWithStats);
@@ -754,20 +779,12 @@ export default function AdminDashboard() {
 
           {/* Tabs */}
           <Tabs defaultValue="activity" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="activity">
-                <Activity className="w-4 h-4 mr-2" />
-                Activity Feed
-              </TabsTrigger>
-              <TabsTrigger value="applications">
-                Applications
-                {stats.pendingApplications > 0 && (
-                  <Badge variant="destructive" className="ml-2">{stats.pendingApplications}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="bookings">Bookings</TabsTrigger>
-              <TabsTrigger value="consumers">Consumers ({stats.totalConsumers})</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="roster">Roster</TabsTrigger>
               <TabsTrigger value="transporters">Transporters ({stats.totalTransporters})</TabsTrigger>
+              <TabsTrigger value="consumers">Consumers ({stats.totalConsumers})</TabsTrigger>
+              <TabsTrigger value="applications">Applications ({stats.pendingApplications})</TabsTrigger>
             </TabsList>
 
             {/* Activity Feed Tab */}
@@ -799,12 +816,12 @@ export default function AdminDashboard() {
                               <div className="flex-1">
                                 <div className="flex items-start justify-between">
                                   <div>
-                                    <p className="font-medium text-sm">{activity.user_name}</p>
-                                    <p className="text-sm text-gray-600">{activity.description}</p>
+                                    <div className="font-medium text-sm">{activity.user_name}</div>
+                                    <div className="text-sm text-gray-600">{activity.description}</div>
                                     {activity.amount && (
-                                      <p className="text-sm font-semibold text-green-600 mt-1">
+                                      <div className="text-sm font-semibold text-green-600 mt-1">
                                         €{activity.amount.toFixed(2)}
-                                      </p>
+                                      </div>
                                     )}
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -1260,6 +1277,100 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            {/* Roster Tab */}
+            <TabsContent value="roster">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Transporter Roster</CardTitle>
+                  <CardDescription>Live view of all transporters with their current status and jobs</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Transporters Table */}
+                    <div className="border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Transporter</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Location</TableHead>
+                            <TableHead>Current Job</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {transporters.map((transporter) => (
+                            <TableRow key={transporter.id}>
+                              <TableCell>
+                                <div>
+                                  <div className="font-medium">{transporter.full_name || "N/A"}</div>
+                                  <div className="text-xs text-gray-500">{transporter.email}</div>
+                                  <div className="text-xs text-gray-500">{transporter.phone || "No phone"}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={
+                                    transporter.status === "busy" ? "destructive" : 
+                                    transporter.status === "online" ? "default" : "secondary"
+                                  }
+                                  className={
+                                    transporter.status === "online" ? "bg-green-500 hover:bg-green-600" : ""
+                                  }
+                                >
+                                  {transporter.status === "busy" ? "Busy (On Job)" : 
+                                   transporter.status === "online" ? "Online (Available)" : "Offline"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm">
+                                  {/* Placeholder for real location tracking */}
+                                  <div className="flex items-center gap-1 text-gray-500">
+                                    <MapPin className="h-3 w-3" />
+                                    <span>Unknown</span>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {transporter.current_job ? (
+                                  <div className="space-y-1">
+                                    <div className="font-medium flex items-center gap-1">
+                                      <Package className="h-3 w-3" />
+                                      Job #{transporter.current_job.id.slice(0, 8)}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      From: {transporter.current_job.pickup_address.split(",")[0]}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      To: {transporter.current_job.dropoff_address.split(",")[0]}
+                                    </div>
+                                    <Badge variant="outline" className="text-[10px] h-5">
+                                      {transporter.current_job.status.replace(/_/g, " ")}
+                                    </Badge>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 italic">No active job</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button variant="ghost" size="sm" onClick={() => viewUserDetails(transporter)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* END OF TABS */}
           </Tabs>
 
           {/* User Details Modal */}
@@ -1289,9 +1400,9 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">Role</label>
-                      <p className="mt-1">
+                      <div className="mt-1">
                         <Badge>{selectedUser.role}</Badge>
-                      </p>
+                      </div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">Joined</label>
@@ -1415,9 +1526,16 @@ export default function AdminDashboard() {
                               <p className="text-sm">{new Date(job.created_at).toLocaleDateString()}</p>
                             </div>
                             <div>
+                              <label className="text-xs font-medium text-gray-500">Status</label>
+                              <div className="text-sm mt-1">
+                                <Badge variant={getStatusBadgeVariant(job.status)}>
+                                  {job.status}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div>
                               <label className="text-xs font-medium text-gray-500">Consumer</label>
                               <p className="text-sm">{job.consumer?.full_name || "N/A"}</p>
-                              <p className="text-xs text-gray-500">{job.consumer?.email || "N/A"}</p>
                             </div>
                             <div className="col-span-2">
                               <label className="text-xs font-medium text-gray-500 flex items-center gap-1">
@@ -1441,19 +1559,9 @@ export default function AdminDashboard() {
                               <label className="text-xs font-medium text-gray-500">Item Size</label>
                               <p className="text-sm capitalize">{job.item_size || "N/A"}</p>
                             </div>
-                            {job.special_instructions && (
-                              <div className="col-span-2">
-                                <label className="text-xs font-medium text-gray-500">Special Instructions</label>
-                                <p className="text-sm text-gray-700">{job.special_instructions}</p>
-                              </div>
-                            )}
                             <div>
                               <label className="text-xs font-medium text-gray-500">Total Price</label>
                               <p className="text-lg font-bold text-green-600">€{Number(job.total_price).toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <label className="text-xs font-medium text-gray-500">Your Earnings (80%)</label>
-                              <p className="text-lg font-bold text-blue-600">€{(Number(job.total_price) * 0.8).toFixed(2)}</p>
                             </div>
                           </div>
                           
@@ -1518,11 +1626,11 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                               <label className="text-xs font-medium text-gray-500">Status</label>
-                              <p className="text-sm">
+                              <div className="text-sm mt-1">
                                 <Badge variant={getStatusBadgeVariant(job.status)}>
-                                  {job.status.replace(/_/g, " ")}
+                                  {job.status}
                                 </Badge>
-                              </p>
+                              </div>
                             </div>
                             <div>
                               <label className="text-xs font-medium text-gray-500">Transporter</label>

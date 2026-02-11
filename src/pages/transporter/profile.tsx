@@ -105,7 +105,7 @@ export default function TransporterProfile() {
       // Calculate stats
       const totalEarnings = (typedBookings || [])
         .filter(b => b.status === "delivered")
-        .reduce((sum, b) => sum + ((b.total_price || 0) * 0.8), 0);
+        .reduce((sum, b) => sum + ((b.total_price || 0) * 0.75), 0);
 
       const monthStart = startOfMonth(new Date());
       const monthEnd = endOfMonth(new Date());
@@ -114,7 +114,7 @@ export default function TransporterProfile() {
           const bookingDate = new Date(b.created_at);
           return b.status === "delivered" && bookingDate >= monthStart && bookingDate <= monthEnd;
         })
-        .reduce((sum, b) => sum + ((b.total_price || 0) * 0.8), 0);
+        .reduce((sum, b) => sum + ((b.total_price || 0) * 0.75), 0);
 
       const completedCount = (typedBookings || []).filter(b => b.status === "delivered").length;
       const cancelledCount = (typedBookings || []).filter(b => b.status === "cancelled").length;
@@ -307,7 +307,7 @@ export default function TransporterProfile() {
         `"${booking.consumer?.full_name || "N/A"}"`,
         booking.item_type || "N/A",
         booking.item_size || "N/A",
-        ((booking.total_price || 0) * 0.8).toFixed(2),
+        ((booking.total_price || 0) * 0.75).toFixed(2),
       ].join(",");
     });
 
@@ -677,7 +677,7 @@ export default function TransporterProfile() {
                             const startTime = new Date(booking.created_at);
                             const endTime = booking.completed_at ? new Date(booking.completed_at) : startTime;
                             const duration = differenceInMinutes(endTime, startTime);
-                            const earnings = ((booking.total_price || 0) * 0.8).toFixed(2);
+                            const earnings = ((booking.total_price || 0) * 0.75).toFixed(2);
 
                             return (
                               <div
