@@ -279,13 +279,26 @@ ${"=".repeat(50)}
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <Button 
-              variant="outline" 
-              onClick={() => router.push("/consumer/dashboard")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/consumer/dashboard")}
+                className="hover:bg-navy-100 dark:hover:bg-navy-800"
+              >
+                <ArrowLeft className="h-5 w-5 text-navy-600 dark:text-navy-400" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/consumer/dashboard")}
+                className="hover:bg-navy-100 dark:hover:bg-navy-800"
+                title="Home"
+              >
+                <Home className="h-5 w-5 text-navy-600 dark:text-navy-400" />
+              </Button>
+              <h1 className="text-2xl font-bold text-navy-900 dark:text-white">Profile</h1>
+            </div>
             <Button variant="outline" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
               Logout
