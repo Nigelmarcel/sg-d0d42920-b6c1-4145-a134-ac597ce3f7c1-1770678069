@@ -40,6 +40,7 @@ export type Database = {
           pickup_lat: number
           pickup_lng: number
           platform_fee: number
+          saved: boolean | null
           scheduled_at: string | null
           special_instructions: string | null
           status: Database["public"]["Enums"]["booking_status"] | null
@@ -74,6 +75,7 @@ export type Database = {
           pickup_lat: number
           pickup_lng: number
           platform_fee: number
+          saved?: boolean | null
           scheduled_at?: string | null
           special_instructions?: string | null
           status?: Database["public"]["Enums"]["booking_status"] | null
@@ -108,6 +110,7 @@ export type Database = {
           pickup_lat?: number
           pickup_lng?: number
           platform_fee?: number
+          saved?: boolean | null
           scheduled_at?: string | null
           special_instructions?: string | null
           status?: Database["public"]["Enums"]["booking_status"] | null
