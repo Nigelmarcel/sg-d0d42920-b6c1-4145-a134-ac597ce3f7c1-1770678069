@@ -47,6 +47,15 @@ export default function TransporterProfile() {
     full_name: "",
     phone: "",
   });
+  const [isEditingVehicle, setIsEditingVehicle] = useState(false);
+  const [vehicleFormData, setVehicleFormData] = useState({
+    van_make: "",
+    van_model: "",
+    van_year: "",
+    van_license_plate: "",
+    van_register_number: "",
+    bank_account_iban: "",
+  });
 
   useEffect(() => {
     loadProfileData();
@@ -85,6 +94,18 @@ export default function TransporterProfile() {
         .maybeSingle();
 
       setApplication(appData);
+      
+      // Load vehicle form data if application exists
+      if (appData) {
+        setVehicleFormData({
+          van_make: appData.van_make || "",
+          van_model: appData.van_model || "",
+          van_year: appData.van_year?.toString() || "",
+          van_license_plate: appData.van_license_plate || "",
+          van_register_number: appData.van_register_number || "",
+          bank_account_iban: appData.bank_account_iban || "",
+        });
+      }
 
       // Load bookings with consumer details
       const { data: bookingsData, error: bookingsError } = await supabase
@@ -160,6 +181,65 @@ export default function TransporterProfile() {
       toast({
         title: "Error",
         description: "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveVehicle = async () => {
+    setIsSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      if (application) {
+        // Update existing application
+        const { error } = await supabase
+          .from("transporter_applications")
+          .update({
+            van_make: vehicleFormData.van_make,
+            van_model: vehicleFormData.van_model,
+            van_year: parseInt(vehicleFormData.van_year),
+            van_license_plate: vehicleFormData.van_license_plate,
+            van_register_number: vehicleFormData.van_register_number,
+            bank_account_iban: vehicleFormData.bank_account_iban,
+          })
+          .eq("user_id", session.user.id);
+
+        if (error) throw error;
+      } else {
+        // Create new application
+        const { error } = await supabase
+          .from("transporter_applications")
+          .insert({
+            user_id: session.user.id,
+            full_name: formData.full_name,
+            phone: formData.phone,
+            van_make: vehicleFormData.van_make,
+            van_model: vehicleFormData.van_model,
+            van_year: parseInt(vehicleFormData.van_year),
+            van_license_plate: vehicleFormData.van_license_plate,
+            van_register_number: vehicleFormData.van_register_number,
+            bank_account_iban: vehicleFormData.bank_account_iban,
+            status: "pending",
+          });
+
+        if (error) throw error;
+      }
+
+      await loadProfileData();
+      setIsEditingVehicle(false);
+      toast({
+        title: "✅ Vehicle Info Updated",
+        description: "Your vehicle information has been saved successfully.",
+      });
+    } catch (error) {
+      console.error("Error saving vehicle info:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update vehicle information",
         variant: "destructive",
       });
     } finally {
@@ -561,50 +641,174 @@ export default function TransporterProfile() {
             <TabsContent value="vehicle">
               <Card>
                 <CardHeader>
-                  <CardTitle>Vehicle Information</CardTitle>
-                  <CardDescription>Your registered vehicle details</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Vehicle Information</CardTitle>
+                      <CardDescription>
+                        {isEditingVehicle ? "Update your vehicle details" : "Your registered vehicle details"}
+                      </CardDescription>
+                    </div>
+                    {application && !isEditingVehicle && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsEditingVehicle(true)}
+                      >
+                        Edit Info
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {application ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground">Van Make & Model</Label>
-                          <div className="flex items-center gap-2">
-                            <Truck className="h-5 w-5 text-primary" />
-                            <p className="font-medium">{application.van_make} {application.van_model}</p>
+                  {application || isEditingVehicle ? (
+                    isEditingVehicle ? (
+                      // Edit Mode
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="van_make">Van Make</Label>
+                            <Input
+                              id="van_make"
+                              value={vehicleFormData.van_make}
+                              onChange={(e) => setVehicleFormData({ ...vehicleFormData, van_make: e.target.value })}
+                              placeholder="e.g., Ford, Mercedes, Volkswagen"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="van_model">Van Model</Label>
+                            <Input
+                              id="van_model"
+                              value={vehicleFormData.van_model}
+                              onChange={(e) => setVehicleFormData({ ...vehicleFormData, van_model: e.target.value })}
+                              placeholder="e.g., Transit, Sprinter, Transporter"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="van_year">Year</Label>
+                            <Input
+                              id="van_year"
+                              type="number"
+                              value={vehicleFormData.van_year}
+                              onChange={(e) => setVehicleFormData({ ...vehicleFormData, van_year: e.target.value })}
+                              placeholder="2020"
+                              min="1990"
+                              max={new Date().getFullYear() + 1}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="van_license_plate">License Plate</Label>
+                            <Input
+                              id="van_license_plate"
+                              value={vehicleFormData.van_license_plate}
+                              onChange={(e) => setVehicleFormData({ ...vehicleFormData, van_license_plate: e.target.value })}
+                              placeholder="ABC-123"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="van_register_number">Vehicle Registration Number</Label>
+                            <Input
+                              id="van_register_number"
+                              value={vehicleFormData.van_register_number}
+                              onChange={(e) => setVehicleFormData({ ...vehicleFormData, van_register_number: e.target.value })}
+                              placeholder="Registration number"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="bank_account_iban">Bank Account (IBAN)</Label>
+                            <Input
+                              id="bank_account_iban"
+                              value={vehicleFormData.bank_account_iban}
+                              onChange={(e) => setVehicleFormData({ ...vehicleFormData, bank_account_iban: e.target.value })}
+                              placeholder="FI21 1234 5600 0007 85"
+                            />
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground">Year</Label>
-                          <p className="font-medium">{application.van_year}</p>
-                        </div>
+                        <Separator />
 
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground">License Plate</Label>
-                          <p className="font-medium">{application.van_license_plate}</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground">Bank Account (IBAN)</Label>
-                          <p className="font-medium">{application.bank_account_iban}</p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleSaveVehicle}
+                            disabled={isSaving}
+                            className="flex-1"
+                          >
+                            {isSaving ? "Saving..." : "Save Changes"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsEditingVehicle(false);
+                              // Reset form data
+                              if (application) {
+                                setVehicleFormData({
+                                  van_make: application.van_make || "",
+                                  van_model: application.van_model || "",
+                                  van_year: application.van_year?.toString() || "",
+                                  van_license_plate: application.van_license_plate || "",
+                                  van_register_number: application.van_register_number || "",
+                                  bank_account_iban: application.bank_account_iban || "",
+                                });
+                              }
+                            }}
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       </div>
+                    ) : (
+                      // View Mode
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground">Van Make & Model</Label>
+                            <div className="flex items-center gap-2">
+                              <Truck className="h-5 w-5 text-primary" />
+                              <p className="font-medium">{application.van_make} {application.van_model}</p>
+                            </div>
+                          </div>
 
-                      <Separator />
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground">Year</Label>
+                            <p className="font-medium">{application.van_year}</p>
+                          </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-muted-foreground">Application Status</Label>
-                        <Badge className={application.status === "approved" ? "bg-green-500" : "bg-yellow-500"}>
-                          {application.status}
-                        </Badge>
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground">License Plate</Label>
+                            <p className="font-medium">{application.van_license_plate}</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground">Registration Number</Label>
+                            <p className="font-medium">{application.van_register_number}</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-muted-foreground">Bank Account (IBAN)</Label>
+                            <p className="font-medium">{application.bank_account_iban}</p>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                          <Label className="text-muted-foreground">Application Status</Label>
+                          <Badge className={application.status === "approved" ? "bg-green-500" : "bg-yellow-500"}>
+                            {application.status}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : (
                     <div className="text-center py-8">
                       <Truck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">No vehicle information found</p>
+                      <p className="text-muted-foreground mb-4">No vehicle information found</p>
+                      <Button onClick={() => setIsEditingVehicle(true)}>
+                        Add Vehicle Information
+                      </Button>
                     </div>
                   )}
                 </CardContent>
