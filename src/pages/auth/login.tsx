@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,74 +26,84 @@ export default function LoginPage() {
     });
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!formData.email || !formData.password) {
-      setError("Please fill in all fields");
+  const resendConfirmation = async () => {
+    if (!formData.email) {
+      setError("Please enter your email address first.");
       return;
     }
 
     setIsLoading(true);
+    setError("");
 
     try {
-      // Attempt login
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: formData.email,
+      });
+
+      if (error) throw error;
+
+      setError(
+        "✅ Confirmation Email Sent!\n\n" +
+        "We've sent a new confirmation link to your email.\n" +
+        "Please check your inbox (and spam folder) and click the link to activate your account."
+      );
+    } catch (err: any) {
+      console.error("Resend error:", err);
+      setError(err.message || "Failed to resend confirmation email.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
-      if (authError) {
-        console.error("Login error:", authError);
-        
-        if (authError.message.includes("Email not confirmed")) {
-          setError("Please confirm your email address before logging in. Check your inbox for the confirmation link.");
-        } else if (authError.message.includes("Invalid login credentials")) {
-          setError("Invalid email or password. Please check your credentials and try again.");
-        } else {
-          setError(`Login failed: ${authError.message}`);
+      if (error) {
+        // Handle email not confirmed error specifically
+        if (error.message.toLowerCase().includes("email not confirmed")) {
+          setError(
+            "⚠️ Email Not Confirmed\n\n" +
+            "Please check your inbox and click the confirmation link we sent you.\n\n" +
+            "📧 Didn't receive the email? Check your spam folder or click 'Resend Confirmation' below."
+          );
+          setIsLoading(false);
+          return;
         }
-        return;
+        
+        // Handle other errors
+        throw error;
       }
 
-      if (!authData?.user) {
-        setError("Login failed. Please try again.");
-        return;
+      if (!data.user) {
+        throw new Error("Login failed");
       }
 
-      console.log("User authenticated:", authData.user.id);
+      // Check user role and redirect
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
 
-      // Fetch user profile to get role
-      const profile = await profileService.getProfile(authData.user.id);
-
-      if (!profile) {
-        console.error("Profile not found for user:", authData.user.id);
-        setError("Profile not found. Please contact support.");
-        await supabase.auth.signOut();
-        return;
+      if (profile?.role === "admin") {
+        router.push("/admin/dashboard");
+      } else if (profile?.role === "transporter") {
+        router.push("/transporter/dashboard");
+      } else {
+        router.push("/consumer/dashboard");
       }
-
-      console.log("Profile found. Role:", profile.role);
-
-      // Redirect based on role
-      switch (profile.role) {
-        case "consumer":
-          router.push("/consumer/dashboard");
-          break;
-        case "transporter":
-          router.push("/transporter/dashboard");
-          break;
-        case "admin":
-          router.push("/admin/dashboard");
-          break;
-        default:
-          router.push("/");
-      }
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error("Unexpected error during login:", error);
-      setError(`An unexpected error occurred: ${error.message}. Please try again.`);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err.message || "Failed to login. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }
@@ -111,7 +122,23 @@ export default function LoginPage() {
           <CardContent className="space-y-4">
             {error && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription className="whitespace-pre-line">
+                  {error}
+                </AlertDescription>
+                {error.includes("Email Not Confirmed") && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={resendConfirmation}
+                    disabled={isLoading}
+                    className="mt-3"
+                  >
+                    📧 Resend Confirmation Email
+                  </Button>
+                )}
               </Alert>
             )}
 

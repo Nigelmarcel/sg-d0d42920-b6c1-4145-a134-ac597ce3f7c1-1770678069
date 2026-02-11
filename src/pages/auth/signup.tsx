@@ -17,6 +17,19 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    full_name: "",
+    phone: "",
+    role: "consumer" as "consumer" | "transporter",
+    van_make: "",
+    van_model: "",
+    van_year: "",
+    van_license_plate: "",
+    van_register_number: "",
+    bank_account_iban: "",
+  });
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();

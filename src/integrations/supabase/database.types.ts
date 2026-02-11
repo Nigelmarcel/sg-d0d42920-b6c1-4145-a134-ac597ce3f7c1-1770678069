@@ -436,6 +436,7 @@ export type Database = {
           van_license_plate: string
           van_make: string
           van_model: string
+          van_register_number: string | null
           van_year: number
           vehicle_registration_url: string | null
         }
@@ -469,6 +470,7 @@ export type Database = {
           van_license_plate: string
           van_make: string
           van_model: string
+          van_register_number?: string | null
           van_year: number
           vehicle_registration_url?: string | null
         }
@@ -502,6 +504,7 @@ export type Database = {
           van_license_plate?: string
           van_make?: string
           van_model?: string
+          van_register_number?: string | null
           van_year?: number
           vehicle_registration_url?: string | null
         }

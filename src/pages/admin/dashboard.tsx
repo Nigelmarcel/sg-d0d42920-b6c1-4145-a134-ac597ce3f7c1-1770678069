@@ -63,6 +63,11 @@ type TransporterApplication = Database["public"]["Tables"]["transporter_applicat
   compliance_status?: string | null;
   admin_notes?: string | null;
   bank_account_iban?: string | null;
+  van_make?: string | null;
+  van_model?: string | null;
+  van_year?: number | null;
+  van_license_plate?: string | null;
+  van_register_number?: string | null;
 };
 type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
   consumer?: { id: string; full_name: string | null; email: string | null } | null;
@@ -1618,11 +1623,15 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">License Plate</label>
-                          <p className="font-medium">{selectedUserApplication.van_license_plate || "N/A"}</p>
+                          <p className="font-medium">{selectedUserApplication.van_license_plate || "Not provided"}</p>
                         </div>
-                        {selectedUserApplication.vehicle_registration_url && (
-                          <div className="col-span-2">
-                            <label className="text-xs text-muted-foreground">Vehicle Registration Document</label>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Register Number</p>
+                          <p className="font-medium">{selectedUserApplication.van_register_number || "Not provided"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Registration Document</p>
+                          {selectedUserApplication.vehicle_registration_url && (
                             <a
                               href={selectedUserApplication.vehicle_registration_url}
                               target="_blank"
@@ -1631,8 +1640,8 @@ export default function AdminDashboard() {
                             >
                               View Registration Document →
                             </a>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
