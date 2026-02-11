@@ -426,7 +426,7 @@ export default function TransporterProfile() {
           </Card>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Jobs</CardTitle>
@@ -471,18 +471,6 @@ export default function TransporterProfile() {
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-purple-500" />
                   <span className="text-3xl font-bold">€{stats.monthlyEarnings.toFixed(0)}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Rating</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-500 fill-current" />
-                  <span className="text-3xl font-bold">{stats.averageRating.toFixed(1)}</span>
                 </div>
               </CardContent>
             </Card>
