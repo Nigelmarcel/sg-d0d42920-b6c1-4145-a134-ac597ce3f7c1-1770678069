@@ -1147,7 +1147,7 @@ export default function AdminDashboard() {
                   <div>
                     <CardTitle>Transporter Accounts</CardTitle>
                     <CardDescription>Manage transporter users and view their performance</CardDescription>
-                  </CardHeader>
+                  </div>
                   <Button variant="outline" size="sm" onClick={() => exportUsers("transporters")}>
                     <Download className="h-4 w-4 mr-2" />
                     Export CSV
