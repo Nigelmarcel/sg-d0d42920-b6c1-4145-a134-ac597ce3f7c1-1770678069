@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Users, Truck, Package, DollarSign, AlertCircle, Search, Filter, Eye, Ban, CheckCircle, Mail, Download, LogOut, Activity, TrendingUp, TrendingDown, Clock, MapPin, CreditCard, UserPlus, UserCheck } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Users, Truck, Package, DollarSign, AlertCircle, Search, Filter, Eye, Ban, CheckCircle, Mail, Download, LogOut, Activity, TrendingUp, TrendingDown, Clock, MapPin, CreditCard, UserPlus, UserCheck, Trash2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { formatDistanceToNow } from "date-fns";
 
@@ -67,6 +67,8 @@ export default function AdminDashboard() {
   const [selectedTransporterId, setSelectedTransporterId] = useState<string | null>(null);
   const [transporterJobs, setTransporterJobs] = useState<Booking[]>([]);
   const [transporterJobsOpen, setTransporterJobsOpen] = useState(false);
+  const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -376,6 +378,64 @@ export default function AdminDashboard() {
     setTransporterJobs(data || []);
     setSelectedTransporterId(transporterId);
     setTransporterJobsOpen(true);
+  }
+
+  function saveJobToFile(job: Booking) {
+    const jobData = {
+      id: job.id,
+      completed_date: new Date(job.updated_at).toISOString(),
+      consumer: {
+        name: job.consumer?.full_name || "N/A",
+        email: job.consumer?.email || "N/A"
+      },
+      pickup_address: job.pickup_address || "N/A",
+      dropoff_address: job.dropoff_address || "N/A",
+      item_type: job.item_type || "N/A",
+      item_size: job.item_size || "N/A",
+      special_instructions: job.special_instructions || "None",
+      total_price: Number(job.total_price),
+      transporter_earnings: Number(job.total_price) * 0.8
+    };
+
+    const blob = new Blob([JSON.stringify(jobData, null, 2)], {
+      type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `job-${job.id.slice(0, 8)}-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleDeleteJob(jobId: string) {
+    setDeleteJobId(jobId);
+    setDeleteConfirmOpen(true);
+  }
+
+  async function confirmDeleteJob() {
+    if (!deleteJobId) return;
+
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("id", deleteJobId)
+        .eq("status", "delivered");
+
+      if (error) throw error;
+
+      if (selectedTransporterId) {
+        await loadTransporterJobs(selectedTransporterId);
+      }
+      await loadDashboardData();
+      
+      setDeleteConfirmOpen(false);
+      setDeleteJobId(null);
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      alert("Failed to delete job. Please try again.");
+    }
   }
 
   async function handleLogout() {
@@ -1087,7 +1147,7 @@ export default function AdminDashboard() {
                   <div>
                     <CardTitle>Transporter Accounts</CardTitle>
                     <CardDescription>Manage transporter users and view their performance</CardDescription>
-                  </div>
+                  </CardHeader>
                   <Button variant="outline" size="sm" onClick={() => exportUsers("transporters")}>
                     <Download className="h-4 w-4 mr-2" />
                     Export CSV
@@ -1254,6 +1314,32 @@ export default function AdminDashboard() {
             </DialogContent>
           </Dialog>
 
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>⚠️ Delete Completed Job?</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this completed job?
+                  <br />
+                  <br />
+                  <strong>Job ID:</strong> {deleteJobId?.slice(0, 8)}
+                  <br />
+                  <br />
+                  This action cannot be undone and will permanently remove the job from the database.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={confirmDeleteJob}>
+                  Delete Job
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Transporter Jobs Dialog */}
           <Dialog open={transporterJobsOpen} onOpenChange={setTransporterJobsOpen}>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -1304,7 +1390,7 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                               <label className="text-xs font-medium text-gray-500">Item Type</label>
-                              <p className="text-sm capitalize">{(job.item_type || "N/A").replace(/_/g, " ")}</p>
+                              <p className="text-sm capitalize">{job.item_type ? job.item_type.replace(/_/g, " ") : "N/A"}</p>
                             </div>
                             <div>
                               <label className="text-xs font-medium text-gray-500">Item Size</label>
@@ -1323,6 +1409,28 @@ export default function AdminDashboard() {
                             <div>
                               <label className="text-xs font-medium text-gray-500">Your Earnings (80%)</label>
                               <p className="text-lg font-bold text-blue-600">€{(Number(job.total_price) * 0.8).toFixed(2)}</p>
+                            </div>
+                          </div>
+                          
+                          {/* Save and Delete Buttons */}
+                          <div className="border-t pt-4 mt-4">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => saveJobToFile(job)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Save Job
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="flex-1 text-red-600 border-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteJob(job.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </Button>
                             </div>
                           </div>
                         </CardContent>
