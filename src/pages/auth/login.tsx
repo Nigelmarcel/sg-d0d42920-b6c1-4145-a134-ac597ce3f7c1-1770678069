@@ -69,7 +69,7 @@ export default function LoginPage() {
 
       if (error) {
         // Handle email not confirmed error specifically
-        if (error.message.toLowerCase().includes("email not confirmed")) {
+        if (error.message && error.message.toLowerCase().includes("email not confirmed")) {
           console.log("🔍 DEBUG: Email not confirmed error detected");
           setError(
             "⚠️ Email Not Confirmed\n\n" +
