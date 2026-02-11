@@ -23,9 +23,10 @@ type Application = Database["public"]["Tables"]["transporter_applications"]["Row
 // Define the exact shape returned by the join query
 type BookingWithConsumer = Database["public"]["Tables"]["bookings"]["Row"] & {
   consumer: { id: string; full_name: string | null; email: string | null } | null;
+  saved?: boolean;
 };
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: "Pending", color: "bg-yellow-500", icon: Clock },
   accepted: { label: "Accepted", color: "bg-navy-900 text-white", icon: Package },
   en_route_pickup: { label: "En Route to Pickup", color: "bg-navy-900/80 text-white", icon: ArrowRight },
@@ -296,17 +297,35 @@ export default function TransporterProfile() {
     }
   };
 
-  const handleDeleteBooking = async (bookingId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
+  const handleToggleSave = async (bookingId: string, currentSavedState: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ saved: !currentSavedState })
+        .eq("id", bookingId);
 
-    if (!session?.user?.id) {
+      if (error) throw error;
+
+      setBookings(bookings.map(b => 
+        b.id === bookingId ? { ...b, saved: !currentSavedState } : b
+      ));
+
+      toast({
+        title: !currentSavedState ? "Trip Saved" : "Trip Unsaved",
+        description: !currentSavedState ? "Trip marked as saved in your journal." : "Trip removed from saved items.",
+      });
+    } catch (error) {
+      console.error("Error toggling save:", error);
       toast({
         title: "Error",
-        description: "You must be logged in to delete a booking",
+        description: "Failed to update trip status.",
         variant: "destructive",
       });
-      return;
     }
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    if (!confirm("Are you sure you want to delete this trip record? This cannot be undone.")) return;
 
     try {
       const { error } = await supabase
@@ -316,15 +335,17 @@ export default function TransporterProfile() {
 
       if (error) throw error;
 
+      setBookings(bookings.filter(b => b.id !== bookingId));
+
       toast({
-        title: "✅ Booking Deleted",
-        description: `Booking ${bookingId} has been deleted`,
+        title: "Trip Deleted",
+        description: "The trip record has been permanently removed.",
       });
     } catch (error) {
       console.error("Error deleting booking:", error);
       toast({
         title: "Error",
-        description: "Failed to delete booking. Please try again.",
+        description: "Failed to delete trip record.",
         variant: "destructive",
       });
     }
@@ -836,7 +857,7 @@ export default function TransporterProfile() {
                                 <Separator className="my-3" />
 
                                 {/* Additional Info */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
                                   <div>
                                     <p className="text-xs text-muted-foreground">Distance</p>
                                     <p className="font-semibold">{(booking.distance_km || 0).toFixed(1)} km</p>
@@ -853,6 +874,27 @@ export default function TransporterProfile() {
                                     <p className="text-xs text-muted-foreground">Item Size</p>
                                     <p className="font-semibold">{booking.item_size || "N/A"}</p>
                                   </div>
+                                </div>
+
+                                <div className="flex justify-end gap-2 mt-2">
+                                  <Button
+                                    variant={booking.saved ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => handleToggleSave(booking.id, booking.saved || false)}
+                                    className={booking.saved ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}
+                                  >
+                                    <Star className={`h-4 w-4 mr-2 ${booking.saved ? "fill-current" : ""}`} />
+                                    {booking.saved ? "Saved" : "Save"}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeleteBooking(booking.id)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                  >
+                                    <LogOut className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </Button>
                                 </div>
                               </div>
                             );
