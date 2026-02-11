@@ -98,8 +98,12 @@ export default function Home() {
                 
                 {/* Logo container */}
                 <div className="relative bg-gradient-to-br from-navy-900 to-navy-950 p-8 rounded-3xl shadow-2xl border border-gold/20">
-                  <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gold via-yellow-400 to-gold tracking-tight">
-                    VANGO
+                  <h1 className="text-6xl md:text-7xl font-bold leading-tight tracking-tight text-navy-950 dark:text-white">
+                    <span className="bg-gradient-to-r from-gold via-gold-light to-gold bg-clip-text text-transparent animate-shimmer">
+                      VANGO
+                    </span>
+                    <br />
+                    Smart Moving Solution
                   </h1>
                   <div className="absolute -inset-1 bg-gradient-to-r from-navy-900 via-gold to-navy-900 rounded-3xl opacity-20 dark:opacity-30 blur-sm -z-10" />
                 </div>
@@ -108,8 +112,8 @@ export default function Home() {
 
             {/* Tagline */}
             <div className="space-y-4">
-              <p className="text-2xl md:text-3xl font-semibold text-gray-700 max-w-3xl mx-auto">
-                Helsinki's Smart Moving Solution
+              <p className="text-2xl md:text-3xl font-semibold text-gray-700">
+                Smart Moving Solution
               </p>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Book a van in minutes. Track in real-time. Move stress-free.
