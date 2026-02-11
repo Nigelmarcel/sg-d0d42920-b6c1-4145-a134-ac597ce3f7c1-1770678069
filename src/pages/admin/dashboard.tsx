@@ -41,7 +41,29 @@ import type { Database } from "@/integrations/supabase/types";
 import { formatDistanceToNow } from "date-fns";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-type TransporterApplication = Database["public"]["Tables"]["transporter_applications"]["Row"];
+type TransporterApplication = Database["public"]["Tables"]["transporter_applications"]["Row"] & {
+  address_country?: string | null;
+  social_security_number?: string | null;
+  address_street?: string | null;
+  address_city?: string | null;
+  address_postal_code?: string | null;
+  driver_license_number?: string | null;
+  driver_license_expiry?: string | null;
+  driver_license_validated?: boolean | null;
+  driver_license_url?: string | null;
+  vehicle_registration_url?: string | null;
+  insurance_company?: string | null;
+  insurance_policy_number?: string | null;
+  insurance_expiry?: string | null;
+  insurance_validated?: boolean | null;
+  insurance_url?: string | null;
+  background_check_status?: string | null;
+  background_check_date?: string | null;
+  documents_verified_date?: string | null;
+  compliance_status?: string | null;
+  admin_notes?: string | null;
+  bank_account_iban?: string | null;
+};
 type Booking = Database["public"]["Tables"]["bookings"]["Row"] & {
   consumer?: { id: string; full_name: string | null; email: string | null } | null;
   transporter?: { id: string; full_name: string | null; email: string | null } | null;
@@ -51,8 +73,15 @@ type UserWithStats = Profile & {
   total_bookings?: number;
   total_earnings?: number;
   average_rating?: number;
-  status: "online" | "offline" | "busy";
-  current_job?: Booking | null;
+  phone_number?: string;
+  is_online?: boolean;
+  status?: "online" | "busy" | "offline";
+  current_job?: {
+    id: string;
+    pickup_address: string;
+    dropoff_address: string;
+    status: string;
+  } | null;
 };
 
 type ActivityLog = {
@@ -304,43 +333,54 @@ export default function AdminDashboard() {
       .order("created_at", { ascending: false });
 
     if (transporterData) {
+      // Transform data
       const transportersWithStats = await Promise.all(
-        transporterData.map(async (transporter) => {
-          // Get completed bookings for stats
-          const { data: bookings } = await supabase
+        transporterData.map(async (user: any) => {
+          // Get stats
+          const { count: totalBookings } = await supabase
             .from("bookings")
-            .select("id, total_price")
-            .eq("transporter_id", transporter.id)
+            .select("*", { count: "exact", head: true })
+            .eq("transporter_id", user.id)
             .eq("status", "delivered");
 
-          const totalEarnings = bookings?.reduce((sum, b) => sum + Number(b.total_price) * 0.75, 0) || 0;
-
-          // Get active booking for status
-          const { data: activeBooking } = await supabase
+          // Calculate earnings (75% of total price)
+          const { data: bookings } = await supabase
             .from("bookings")
-            .select(`
-              *,
-              consumer:profiles!bookings_consumer_id_fkey(id, full_name, email)
-            `)
-            .eq("transporter_id", transporter.id)
+            .select("total_price")
+            .eq("transporter_id", user.id)
+            .eq("status", "delivered");
+
+          const totalEarnings = (bookings || []).reduce(
+            (sum, booking) => sum + (Number(booking.total_price) || 0) * 0.75, 
+            0
+          );
+
+          // Determine status and current job
+          let status: "online" | "busy" | "offline" = user.is_online ? "online" : "offline";
+          let currentJob = null;
+
+          // Check for active job
+          const { data: activeJob } = await supabase
+            .from("bookings")
+            .select("id, pickup_address, dropoff_address, status")
+            .eq("transporter_id", user.id)
             .in("status", ["accepted", "en_route_pickup", "picked_up", "en_route_dropoff"])
             .maybeSingle();
 
-          let status: "online" | "offline" | "busy" = "offline";
-          if (activeBooking) {
+          if (activeJob) {
             status = "busy";
-          } else if (transporter.is_online) {
-            status = "online";
+            currentJob = activeJob;
           }
 
           return {
-            ...transporter,
-            total_bookings: bookings?.length || 0,
+            ...user,
+            phone_number: user.phone_number, // Ensure this is mapped if it exists on profile
+            total_bookings: totalBookings,
             total_earnings: totalEarnings,
-            average_rating: 0,
+            average_rating: 0, // Removed from UI but kept in type for compatibility if needed
             status,
-            current_job: activeBooking || null
-          } as UserWithStats;
+            current_job: currentJob
+          };
         })
       );
       setTransporters(transportersWithStats);
@@ -621,7 +661,7 @@ export default function AdminDashboard() {
       ...data.map(u => [
         u.full_name || "",
         u.email || "",
-        u.phone || "",
+        u.phone_number || "",
         new Date(u.created_at).toLocaleDateString(),
         u.total_bookings || 0,
         (u.total_earnings || 0).toFixed(2)
@@ -1196,7 +1236,7 @@ export default function AdminDashboard() {
                               <TableRow key={consumer.id}>
                                 <TableCell className="font-medium">{consumer.full_name || "N/A"}</TableCell>
                                 <TableCell>{consumer.email}</TableCell>
-                                <TableCell>{consumer.phone || "N/A"}</TableCell>
+                                <TableCell>{consumer.phone_number || "N/A"}</TableCell>
                                 <TableCell>{new Date(consumer.created_at).toLocaleDateString()}</TableCell>
                                 <TableCell>
                                   <Badge 
@@ -1280,7 +1320,7 @@ export default function AdminDashboard() {
                               <TableRow key={transporter.id}>
                                 <TableCell className="font-medium">{transporter.full_name || "N/A"}</TableCell>
                                 <TableCell>{transporter.email}</TableCell>
-                                <TableCell>{transporter.phone || "N/A"}</TableCell>
+                                <TableCell>{transporter.phone_number || "N/A"}</TableCell>
                                 <TableCell>{new Date(transporter.created_at).toLocaleDateString()}</TableCell>
                                 <TableCell>
                                   <Badge 
@@ -1343,7 +1383,7 @@ export default function AdminDashboard() {
                                 <div>
                                   <div className="font-medium">{transporter.full_name || "N/A"}</div>
                                   <div className="text-xs text-gray-500">{transporter.email}</div>
-                                  <div className="text-xs text-gray-500">{transporter.phone || "No phone"}</div>
+                                  <div className="text-xs text-gray-500">{transporter.phone_number || "No phone"}</div>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -1411,243 +1451,261 @@ export default function AdminDashboard() {
           </Tabs>
 
           {/* User Details Dialog */}
-          <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedUser?.role === "transporter" ? "Transporter Kortisto (Registry)" : "User Details"}
-                </DialogTitle>
-                <DialogDescription>
-                  {selectedUser?.role === "transporter" 
-                    ? "Complete transporter information and documentation" 
-                    : "Complete information about this user"}
-                </DialogDescription>
-              </DialogHeader>
-              
+          <Dialog open={!!selectedUser} onOpenChange={() => {
+            setSelectedUser(null);
+            setSelectedUserApplication(null);
+          }}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               {selectedUser && (
                 <div className="space-y-6">
-                  {/* Personal Information Section */}
-                  <div className="border rounded-lg p-4">
-                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Personal Information
-                    </h3>
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <DialogTitle className="text-2xl font-bold">
+                        {selectedUser.full_name || "Unnamed User"}
+                      </DialogTitle>
+                      <DialogDescription className="text-base mt-1">
+                        Complete transporter registry information
+                      </DialogDescription>
+                    </div>
+                    <Badge variant={selectedUser.role === "transporter" ? "default" : "secondary"}>
+                      {selectedUser.role}
+                    </Badge>
+                  </div>
+
+                  {/* Personal Information */}
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <User className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-lg">Personal Information</h3>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs text-muted-foreground">Full Name</label>
-                        <p className="font-medium">{selectedUser.full_name || "Not provided"}</p>
+                        <p className="font-medium">{selectedUser.full_name || "N/A"}</p>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Email</label>
-                        <p className="font-medium">{selectedUser.email || "Not provided"}</p>
+                        <p className="font-medium">{selectedUser.email || "N/A"}</p>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Phone</label>
-                        <p className="font-medium">{selectedUser.phone || "Not provided"}</p>
+                        <p className="font-medium">{selectedUser.phone_number || "N/A"}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Social Security Number</label>
+                        <p className="font-medium">{selectedUserApplication?.social_security_number || "N/A"}</p>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Role</label>
-                        <div>
-                          <Badge variant={selectedUser.role === "admin" ? "default" : "secondary"}>
-                            {selectedUser.role}
-                          </Badge>
-                        </div>
+                        <Badge variant={selectedUser.role === "transporter" ? "default" : "secondary"}>
+                          {selectedUser.role}
+                        </Badge>
                       </div>
-                      
-                      {selectedUser.role === "transporter" && selectedUserApplication && (
-                        <>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Social Security Number</label>
-                            <p className="font-medium">{selectedUserApplication.social_security_number || "Not provided"}</p>
-                          </div>
-                          <div className="col-span-2">
-                            <label className="text-xs text-muted-foreground">Address</label>
-                            <p className="font-medium">
-                              {selectedUserApplication.address_street || "Not provided"}
-                              {selectedUserApplication.address_street && selectedUserApplication.address_city && ", "}
-                              {selectedUserApplication.address_city || ""}
-                              {selectedUserApplication.address_postal_code && ` ${selectedUserApplication.address_postal_code}`}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                      
                       <div>
                         <label className="text-xs text-muted-foreground">Member Since</label>
                         <p className="font-medium">
-                          {new Date(selectedUser.created_at || "").toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric"
-                          })}
+                          {selectedUser.created_at
+                            ? new Date(selectedUser.created_at).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "N/A"}
                         </p>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Status</label>
-                        <div>
-                          <Badge variant={selectedUser.is_online ? "default" : "secondary"}>
-                            {selectedUser.is_online ? "Online" : "Offline"}
-                          </Badge>
-                        </div>
+                        <Badge variant={selectedUser.is_online ? "default" : "secondary"}>
+                          {selectedUser.is_online ? "Online" : "Offline"}
+                        </Badge>
                       </div>
                     </div>
                   </div>
 
-                  {/* Driver's License Section - Only for Transporters */}
+                  {/* Address Information */}
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-lg">Address</h3>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Street Address</label>
+                        <p className="font-medium">{selectedUserApplication?.address_street || "N/A"}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Postal Code</label>
+                          <p className="font-medium">{selectedUserApplication?.address_postal_code || "N/A"}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">City</label>
+                          <p className="font-medium">{selectedUserApplication?.address_city || "N/A"}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Country</label>
+                        <p className="font-medium">{selectedUserApplication?.address_country || "Finland"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Driver's License Information */}
                   {selectedUser.role === "transporter" && selectedUserApplication && (
-                    <div className="border rounded-lg p-4">
-                      <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        Driver's License Information
-                      </h3>
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-lg">Driver&apos;s License Information</h3>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="text-xs text-muted-foreground">License Number</label>
-                          <p className="font-medium">{selectedUserApplication.driver_license_number || "Not provided"}</p>
+                          <p className="font-medium">{selectedUserApplication.driver_license_number || "N/A"}</p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Expiry Date</label>
                           <p className="font-medium">
-                            {selectedUserApplication.driver_license_expiry 
+                            {selectedUserApplication.driver_license_expiry
                               ? new Date(selectedUserApplication.driver_license_expiry).toLocaleDateString()
-                              : "Not provided"}
+                              : "N/A"}
                           </p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Validation Status</label>
                           <div>
                             <Badge variant={selectedUserApplication.driver_license_validated ? "default" : "destructive"}>
-                              {selectedUserApplication.driver_license_validated ? "Validated" : "Not Validated"}
+                              {selectedUserApplication.driver_license_validated ? "✓ Validated" : "✗ Not Validated"}
                             </Badge>
                           </div>
                         </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground">License Document</label>
-                          {selectedUserApplication.driver_license_url ? (
-                            <a 
-                              href={selectedUserApplication.driver_license_url} 
-                              target="_blank" 
+                        {selectedUserApplication.driver_license_url && (
+                          <div>
+                            <label className="text-xs text-muted-foreground">License Document</label>
+                            <a
+                              href={selectedUserApplication.driver_license_url}
+                              target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline text-sm"
+                              className="text-blue-600 hover:underline flex items-center gap-1"
                             >
                               View Document →
                             </a>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Not uploaded</p>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Vehicle Information Section - Only for Transporters */}
+                  {/* Vehicle Information */}
                   {selectedUser.role === "transporter" && selectedUserApplication && (
-                    <div className="border rounded-lg p-4">
-                      <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <Truck className="h-5 w-5" />
-                        Vehicle Information
-                      </h3>
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Truck className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-lg">Vehicle Information</h3>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="text-xs text-muted-foreground">Make & Model</label>
-                          <p className="font-medium">
-                            {selectedUserApplication.van_make} {selectedUserApplication.van_model}
-                          </p>
+                          <label className="text-xs text-muted-foreground">Vehicle Make</label>
+                          <p className="font-medium">{selectedUserApplication.van_make || "N/A"}</p>
                         </div>
                         <div>
-                          <label className="text-xs text-muted-foreground">Year</label>
-                          <p className="font-medium">{selectedUserApplication.van_year}</p>
+                          <label className="text-xs text-muted-foreground">Vehicle Model</label>
+                          <p className="font-medium">{selectedUserApplication.van_model || "N/A"}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Manufacture Year</label>
+                          <p className="font-medium">{selectedUserApplication.van_year || "N/A"}</p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">License Plate</label>
-                          <p className="font-medium">{selectedUserApplication.van_license_plate}</p>
+                          <p className="font-medium">{selectedUserApplication.van_license_plate || "N/A"}</p>
                         </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground">Registration Document</label>
-                          {selectedUserApplication.vehicle_registration_url ? (
-                            <a 
-                              href={selectedUserApplication.vehicle_registration_url} 
-                              target="_blank" 
+                        {selectedUserApplication.vehicle_registration_url && (
+                          <div className="col-span-2">
+                            <label className="text-xs text-muted-foreground">Vehicle Registration Document</label>
+                            <a
+                              href={selectedUserApplication.vehicle_registration_url}
+                              target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline text-sm"
+                              className="text-blue-600 hover:underline flex items-center gap-1"
                             >
-                              View Document →
+                              View Registration Document →
                             </a>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Not uploaded</p>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Insurance Information Section - Only for Transporters */}
+                  {/* Insurance Information */}
                   {selectedUser.role === "transporter" && selectedUserApplication && (
-                    <div className="border rounded-lg p-4">
-                      <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <Shield className="h-5 w-5" />
-                        Insurance Information
-                      </h3>
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Shield className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-lg">Insurance Information</h3>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="text-xs text-muted-foreground">Insurance Company</label>
-                          <p className="font-medium">{selectedUserApplication.insurance_company || "Not provided"}</p>
+                          <p className="font-medium">{selectedUserApplication.insurance_company || "N/A"}</p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Policy Number</label>
-                          <p className="font-medium">{selectedUserApplication.insurance_policy_number || "Not provided"}</p>
+                          <p className="font-medium">{selectedUserApplication.insurance_policy_number || "N/A"}</p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Expiry Date</label>
                           <p className="font-medium">
-                            {selectedUserApplication.insurance_expiry 
+                            {selectedUserApplication.insurance_expiry
                               ? new Date(selectedUserApplication.insurance_expiry).toLocaleDateString()
-                              : "Not provided"}
+                              : "N/A"}
                           </p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Validation Status</label>
                           <div>
                             <Badge variant={selectedUserApplication.insurance_validated ? "default" : "destructive"}>
-                              {selectedUserApplication.insurance_validated ? "Validated" : "Not Validated"}
+                              {selectedUserApplication.insurance_validated ? "✓ Validated" : "✗ Not Validated"}
                             </Badge>
                           </div>
                         </div>
-                        <div className="col-span-2">
-                          <label className="text-xs text-muted-foreground">Insurance Certificate</label>
-                          {selectedUserApplication.insurance_url ? (
-                            <a 
-                              href={selectedUserApplication.insurance_url} 
-                              target="_blank" 
+                        {selectedUserApplication.insurance_url && (
+                          <div className="col-span-2">
+                            <label className="text-xs text-muted-foreground">Insurance Certificate</label>
+                            <a
+                              href={selectedUserApplication.insurance_url}
+                              target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline text-sm"
+                              className="text-blue-600 hover:underline flex items-center gap-1"
                             >
-                              View Certificate →
+                              View Insurance Certificate →
                             </a>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Not uploaded</p>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Compliance & Verification Section - Only for Transporters */}
+                  {/* Compliance & Verification */}
                   {selectedUser.role === "transporter" && selectedUserApplication && (
-                    <div className="border rounded-lg p-4">
-                      <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <CheckCircle2 className="h-5 w-5" />
-                        Compliance & Verification
-                      </h3>
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-lg">Compliance & Verification</h3>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="text-xs text-muted-foreground">Application Status</label>
                           <div>
-                            <Badge variant={
-                              selectedUserApplication.status === "approved" ? "default" :
-                              selectedUserApplication.status === "rejected" ? "destructive" :
-                              "secondary"
-                            }>
+                            <Badge
+                              variant={
+                                selectedUserApplication.status === "approved"
+                                  ? "default"
+                                  : selectedUserApplication.status === "rejected"
+                                  ? "destructive"
+                                  : "secondary"
+                              }
+                            >
                               {selectedUserApplication.status}
                             </Badge>
                           </div>
@@ -1655,89 +1713,73 @@ export default function AdminDashboard() {
                         <div>
                           <label className="text-xs text-muted-foreground">Compliance Status</label>
                           <div>
-                            <Badge variant={
-                              selectedUserApplication.compliance_status === "compliant" ? "default" :
-                              selectedUserApplication.compliance_status === "non_compliant" ? "destructive" :
-                              "secondary"
-                            }>
+                            <Badge
+                              variant={
+                                selectedUserApplication.compliance_status === "compliant"
+                                  ? "default"
+                                  : selectedUserApplication.compliance_status === "non-compliant"
+                                  ? "destructive"
+                                  : "secondary"
+                              }
+                            >
                               {selectedUserApplication.compliance_status || "pending"}
                             </Badge>
                           </div>
                         </div>
                         <div>
-                          <label className="text-xs text-muted-foreground">Background Check</label>
-                          <div>
-                            <Badge variant={
-                              selectedUserApplication.background_check_status === "approved" ? "default" :
-                              selectedUserApplication.background_check_status === "rejected" ? "destructive" :
-                              "secondary"
-                            }>
-                              {selectedUserApplication.background_check_status || "pending"}
-                            </Badge>
-                          </div>
+                          <label className="text-xs text-muted-foreground">Background Check Status</label>
+                          <p className="font-medium">{selectedUserApplication.background_check_status || "N/A"}</p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Background Check Date</label>
                           <p className="font-medium">
-                            {selectedUserApplication.background_check_date 
+                            {selectedUserApplication.background_check_date
                               ? new Date(selectedUserApplication.background_check_date).toLocaleDateString()
-                              : "Not completed"}
+                              : "N/A"}
                           </p>
                         </div>
                         <div>
-                          <label className="text-xs text-muted-foreground">Documents Verified</label>
+                          <label className="text-xs text-muted-foreground">Documents Verified Date</label>
                           <p className="font-medium">
-                            {selectedUserApplication.documents_verified_date 
+                            {selectedUserApplication.documents_verified_date
                               ? new Date(selectedUserApplication.documents_verified_date).toLocaleDateString()
-                              : "Not verified"}
+                              : "N/A"}
                           </p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Bank Account (IBAN)</label>
-                          <p className="font-medium font-mono text-sm">
-                            {selectedUserApplication.bank_account_iban || "Not provided"}
-                          </p>
+                          <p className="font-medium">{selectedUserApplication.bank_account_iban || "N/A"}</p>
                         </div>
+                        {selectedUserApplication.admin_notes && (
+                          <div className="col-span-2">
+                            <label className="text-xs text-muted-foreground">Admin Notes</label>
+                            <p className="font-medium text-sm bg-muted p-3 rounded">
+                              {selectedUserApplication.admin_notes}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      
-                      {selectedUserApplication.admin_notes && (
-                        <div className="mt-4">
-                          <label className="text-xs text-muted-foreground">Admin Notes</label>
-                          <p className="text-sm mt-1 p-2 bg-muted rounded">{selectedUserApplication.admin_notes}</p>
-                        </div>
-                      )}
                     </div>
                   )}
 
-                  {/* Stats Section */}
-                  <div className="border rounded-lg p-4">
-                    <h3 className="font-semibold text-lg mb-4">Statistics</h3>
-                    <div className="grid grid-cols-3 gap-4">
+                  {/* Statistics */}
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Activity className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-lg">Statistics</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs text-muted-foreground">Total Bookings</label>
                         <p className="text-2xl font-bold">{selectedUser.total_bookings || 0}</p>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Total Earnings</label>
-                        <p className="text-2xl font-bold">€{(selectedUser.total_earnings || 0).toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Average Rating</label>
-                        <p className="text-2xl font-bold">{(selectedUser.average_rating || 0).toFixed(1)} ⭐</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          €{(selectedUser.total_earnings || 0).toFixed(2)}
+                        </p>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Actions Section */}
-                  <div className="flex gap-2 justify-end pt-4 border-t">
-                    <Button variant="outline" onClick={() => setSelectedUser(null)}>
-                      Close
-                    </Button>
-                    {selectedUser.role === "transporter" && (
-                      <Button variant="default">
-                        Edit Kortisto
-                      </Button>
-                    )}
                   </div>
                 </div>
               )}
